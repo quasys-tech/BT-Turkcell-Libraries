@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-dotnet-demo
+  namespace: enes-bt-cache
+  labels:
+    app: bt-dotnet-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-dotnet-demo
+  template:
+    metadata:
+      labels:
+        app: bt-dotnet-demo
+    spec:
+      containers:
+      - name: demo-app
+        image: docker.io/enespekdas/bt-dotnet-lib-demo-app:v1.1 # Build ettiğin image adı
+        envFrom:
+        - configMapRef:
+            name: bt-dotnet-demo-cm
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL

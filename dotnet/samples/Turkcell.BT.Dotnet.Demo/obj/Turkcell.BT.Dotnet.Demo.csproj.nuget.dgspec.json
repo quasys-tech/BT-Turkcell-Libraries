@@ -1,0 +1,148 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\samples\\Turkcell.BT.Dotnet.Demo\\Turkcell.BT.Dotnet.Demo.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\samples\\Turkcell.BT.Dotnet.Demo\\Turkcell.BT.Dotnet.Demo.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\samples\\Turkcell.BT.Dotnet.Demo\\Turkcell.BT.Dotnet.Demo.csproj",
+        "projectName": "Turkcell.BT.Dotnet.Demo",
+        "projectPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\samples\\Turkcell.BT.Dotnet.Demo\\Turkcell.BT.Dotnet.Demo.csproj",
+        "packagesPath": "C:\\Users\\vagrant\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\samples\\Turkcell.BT.Dotnet.Demo\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\vagrant\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {},
+          "https://trial34yj6b.jfrog.io/artifactory/api/nuget/v3/beyondtrust-nuget/index.json": {},
+          "https://trial34yj6b.jfrog.io/artifactory/api/nuget/v3/bt-dotnet-library-repo": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {
+                "projectPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[10.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.417/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
+        "projectName": "Turkcell.BT.Dotnet.Lib",
+        "projectPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
+        "packagesPath": "C:\\Users\\vagrant\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\vagrant\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {},
+          "https://trial34yj6b.jfrog.io/artifactory/api/nuget/v3/beyondtrust-nuget/index.json": {},
+          "https://trial34yj6b.jfrog.io/artifactory/api/nuget/v3/bt-dotnet-library-repo": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.2, )"
+            },
+            "Microsoft.Extensions.Configuration.Binder": {
+              "target": "Package",
+              "version": "[10.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.417/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

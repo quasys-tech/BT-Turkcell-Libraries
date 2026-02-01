@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bt-dotnet-demo-cm
+  namespace: enes-bt-cache
+data:
+  # Kütüphanenin beklediği standart değişkenler
+  BEYONDTRUST_API_URL: "https://pam.quasys.com.tr/BeyondTrust/api/public/v3"
+  BEYONDTRUST_ENABLED: "true"
+  BEYONDTRUST_IGNORE_SSL_ERRORS: "true"
+  BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED: "false"
+  BEYONDTRUST_MANAGED_ACCOUNTS: "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme"
+  BEYONDTRUST_SECRET_SAFE_PATHS: "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST"
+  BEYONDTRUST_REFRESH_INTERVAL: "20"
+  # API Key gibi hassas veriler normalde Secret olmalı ama CM isteğin üzerine buraya ekliyoruz
+  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;"
+  BEYONDTRUST_CERTIFICATE_CONTENT: |-
+    -----BEGIN CERTIFICATE-----
+    MIID9jCCAt6gAwIBAgIULhVcmwid/0OyCBLCWzSWbJ/RuiEwDQYJKoZIhvcNAQEL
+    BQAwfjELMAkGA1UEBhMCVFIxETAPBgNVBAgMCElzdGFuYnVsMREwDwYDVQQHDAhJ
+    c3RhbmJ1bDEWMBQGA1UECgwNc2VjcmV0cy1jYWNoZTERMA8GA1UECwwIcGxhdGZv
+    cm0xHjAcBgNVBAMMFXNlY3JldHMtY2FjaGUtc2VydmljZTAeFw0yNjAxMjYxNjI1
+    NDRaFw0yODA0MzAxNjI1NDRaMH4xCzAJBgNVBAYTAlRSMREwDwYDVQQIDAhJc3Rh
+    bmJ1bDERMA8GA1UEBwwISXN0YW5idWwxFjAUBgNVBAoMDXNlY3JldHMtY2FjaGUx
+    ETAPBgNVBAsMCHBsYXRmb3JtMR4wHAYDVQQDDBVzZWNyZXRzLWNhY2hlLXNlcnZp
+    Y2UwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCyOJt+y4aacrxy4yiC
+    pi5GRxk4gOazpv5rWZuZp5XiYx6YgmipOtCXu1gfezx4Lox0NZvv5XVux02u9dc3
+    qFgRpaJf6iMO+lS0l0AwamEQppGJjQNp9LKJUASdizxhf9TYqcgOO1/hWtYeuL1i
+    Fm4vxG3ZTy8xB7hBqGIhYJXH7yTc53B8dC1R+k1MArRe9WAad6aF1WQm0u+e2s7G
+    25rPgTol+cRxHLfeD6RyGSlrBCLIOP5XJB469j/rVWYCSZCwdcd+l7zsn3ijC5ds
+    bLPdDMGHbnsPnbNVsfwfk6TU1aujzmOGTqo7DgvktbLL7mBqumvBbhWblu8unx90
+    aa9pAgMBAAGjbDBqMEkGA1UdEQRCMECCFXNlY3JldHMtY2FjaGUtc2VydmljZYIn
+    c2VjcmV0cy1jYWNoZS1zZXJ2aWNlLnN2Yy5jbHVzdGVyLmxvY2FsMB0GA1UdDgQW
+    BBQF1XKgQdswbTDYsKnwfcwCpcA9+zANBgkqhkiG9w0BAQsFAAOCAQEAisixqaul
+    bKOD+xX5Xw/6JnpAW7yvIl5WnOXDY4aFRz/wSHNyrBmmq7nuGwh4PrjigoYeq/t0
+    v3SY9yRhLti9KYcopiWc5uHmp2NahzUq9UYJYG5f7lpuOqtzihyf+blW6jeaPvv3
+    tC/L7tETXSjXr8yZpcHbHBn5wilZjD4Cxq0Mzlt9Pp1X7ldc4iEkoMWXiJAzi7H8
+    hSxAPwoO9M/85zUsBGQbhkhJo6ll8SQPjnVN/TH+KQ//aIuERORiEgp+vFrYN9b9
+    5Ia3uUVaRAjP8feN6JNbnS4mMpwl/6QZzFim+imU19EmdMsIRpUgblR6NStmNsqw
+    icqfwZqJYAqU5w==
+    -----END CERTIFICATE-----

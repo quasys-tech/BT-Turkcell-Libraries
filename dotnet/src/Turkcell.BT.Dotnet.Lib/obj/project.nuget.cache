@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "dlVsuXVNYDU=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.2\\microsoft.extensions.configuration.10.0.2.nupkg.sha512",
+    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.2\\microsoft.extensions.configuration.abstractions.10.0.2.nupkg.sha512",
+    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.binder\\10.0.2\\microsoft.extensions.configuration.binder.10.0.2.nupkg.sha512",
+    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.2\\microsoft.extensions.primitives.10.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}
