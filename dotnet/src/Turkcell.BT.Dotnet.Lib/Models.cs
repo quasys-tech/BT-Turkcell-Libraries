@@ -21,7 +21,9 @@ public class BeyondTrustOptions
 
     [ConfigurationKeyName("BEYONDTRUST_IGNORE_SSL_ERRORS")]
     public bool IgnoreSslErrors { get; set; } = false;
-
+    
+    [ConfigurationKeyName("BEYONDTRUST_CERTIFICATE_CONTENT")]
+    public string? CertificateContent { get; set; }
     /// <summary>
     /// Şifrelerin yenilenme periyodu (Saniye). Varsayılan 30 dakika (1800 sn).
     /// </summary>

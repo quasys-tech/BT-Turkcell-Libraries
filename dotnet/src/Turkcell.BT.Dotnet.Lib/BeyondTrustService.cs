@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Net;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
 // Test projesinden internal modellere erişim sağlar
 [assembly: InternalsVisibleTo("Turkcell.BT.Dotnet.Tests")]
@@ -25,16 +26,42 @@ public class BeyondTrustService : IDisposable
 
         var handler = new HttpClientHandler();
 
+        // --- SSL YAPILANDIRMASI ---
         if (_options.IgnoreSslErrors) 
         {
-            // 1. Sertifika doğrulamasını tamamen bypass et
+            // Güvenlik uyarısı: Test ortamları için her şeyi kabul et
             handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-            
-            // 2. Bazı eski cache servisleri TLS 1.2 veya 1.1 bekleyebilir, kısıtlamayı kaldıralım
-            handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
+        }
+        else if (!string.IsNullOrWhiteSpace(_options.CertificateContent))
+        {
+            // Kurumsal Güvenlik: Sadece verilen sertifikayı Trust-Anchor olarak kabul et
+            try 
+            {
+                var certBytes = Encoding.UTF8.GetBytes(_options.CertificateContent);
+                var trustedCert = new X509Certificate2(certBytes);
+
+                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => 
+                {
+                    // Sunucu sertifikası bizim verdiğimiz sertifika ile eşleşiyor mu? (Thumbprint kontrolü)
+                    if (cert != null && cert.GetCertHashString() == trustedCert.GetCertHashString())
+                    {
+                        return true;
+                    }
+                    
+                    // Standart zincir doğrulaması başarılıysa geç
+                    return errors == System.Net.Security.SslPolicyErrors.None;
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ [BeyondTrust] Sertifika yüklenemedi, standart doğrulama kullanılacak: {ex.Message}");
+            }
         }
 
-        // Proxy ayarlarını devre dışı bırak (İç ağda hız kazanmak için)
+        // Bazı eski cache servisleri TLS 1.2 veya 1.1 bekleyebilir
+        handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
+
+        // Proxy ayarlarını devre dışı bırak
         handler.UseProxy = false;
         handler.Proxy = null;
 
@@ -84,7 +111,6 @@ public class BeyondTrustService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"⚠️ [Turkcell.BT.BeyondTrust] Service Error: {ex.Message}");
-            // Turkcell standartlarında hata yutulmaz, provider katmanında loglanması için yukarı fırlatılır.
             throw; 
         }
 
@@ -101,7 +127,6 @@ public class BeyondTrustService : IDisposable
         
         var targets = FilterAccounts(allAccounts);
 
-        // .NET 8 paralel işleme - Turkcell iç ağında eşzamanlı 5 istek idealdir.
         await Parallel.ForEachAsync(targets, new ParallelOptions { MaxDegreeOfParallelism = 5 }, async (acc, _) =>
         {
             string cacheKey = $"acc.{acc.SystemName.Trim()}.{acc.AccountName.Trim()}";
@@ -147,7 +172,7 @@ public class BeyondTrustService : IDisposable
                     }
                 }
             }
-            catch { /* Gizli kasa hataları genel akışı bozmamalı */ }
+            catch { }
         }
     }
 
@@ -156,7 +181,6 @@ public class BeyondTrustService : IDisposable
         string reqId = "";
         try
         {
-            // Raw string literal (.NET 8/C# 12 style)
             var jsonBody = $$"""{"systemId":{{sysId}},"accountId":{{accId}},"durationMinutes":5,"reason":"TurkcellAutoFetch"}""";
             var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
             
@@ -176,7 +200,6 @@ public class BeyondTrustService : IDisposable
             string pass = "";
             bool success = false;
 
-            // Turkcell iç ağında 5 deneme (Exponential backoff simülasyonu)
             for (int i = 0; i < 5; i++)
             {
                 var credResp = await _httpClient.GetAsync($"Credentials/{reqId}").ConfigureAwait(false);
@@ -235,13 +258,11 @@ public class BeyondTrustService : IDisposable
 
             foreach (var req in doc.RootElement.EnumerateArray())
             {
-                // Case-insensitive mülk okuma
                 int s = GetIntProp(req, "SystemID");
                 int a = GetIntProp(req, "AccountID");
 
                 if (s == sysId && a == accId)
                 {
-                    // RequestID veya RequestId her ikisini de kontrol et
                     var ridProp = req.EnumerateObject()
                         .FirstOrDefault(p => p.Name.Equals("RequestID", StringComparison.OrdinalIgnoreCase));
                     
