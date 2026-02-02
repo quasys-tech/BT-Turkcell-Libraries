@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-java-poc
+  namespace: your-namespace
+  labels:
+    app: bt-java-poc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-java-poc
+  template:
+    metadata:
+      labels:
+        app: bt-java-poc
+    spec:
+      containers:
+        - name: poc-app
+          # Build ettiğin Docker imajı
+          image: image-registry.openshift-image-registry.svc:5000/your-namespace/bt-java-poc:latest
+          imagePullPolicy: Always
+
+          # Tek hamlede tüm ConfigMap'i Env olarak içeri basıyoruz
+          envFrom:
+            - configMapRef:
+                name: bt-java-config
+
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
