@@ -69,8 +69,8 @@ public class BeyondTrustService implements AutoCloseable {
                 processSecretSafe(data);
             }
         } catch (Exception ex) {
-            System.err.println("❌ BT Error: " + ex.getMessage());
-        }
+            System.err.println("❌ [BeyondTrust] fetchAllSecrets patladı:");
+            ex.printStackTrace();        }
         return data;
     }
 
@@ -141,18 +141,40 @@ public class BeyondTrustService implements AutoCloseable {
     private String findExistingReqId(int sysId, int accId) {
         try {
             HttpResponse<String> r = httpClient.send(req("Requests").GET().build(), HttpResponse.BodyHandlers.ofString());
+            
+            // Log ekleyelim: Requests listesi çekilebildi mi?
+            if (r.statusCode() != 200) {
+                System.err.println("⚠️ [BeyondTrust] Mevcut istekler listelenemedi. Status: " + r.statusCode());
+                return "";
+            }
+
             JsonNode root = objectMapper.readTree(sanitize(r.body()));
             if (root.isArray()) {
                 for (JsonNode n : root) {
-                    int s = n.has("SystemID") ? n.get("SystemID").asInt() : (n.has("systemId") ? n.get("systemId").asInt() : -1);
-                    int a = n.has("AccountID") ? n.get("AccountID").asInt() : (n.has("accountId") ? n.get("accountId").asInt() : -1);
-                    if (s == sysId && a == accId) return n.has("RequestID") ? n.get("RequestID").asText() : n.get("RequestId").asText();
+                    // Hem büyük hem küçük harf ihtimallerini güvenle kontrol ediyoruz
+                    int s = -1;
+                    if (n.has("SystemID")) s = n.get("SystemID").asInt();
+                    else if (n.has("systemId")) s = n.get("systemId").asInt();
+
+                    int a = -1;
+                    if (n.has("AccountID")) a = n.get("AccountID").asInt();
+                    else if (n.has("accountId")) a = n.get("accountId").asInt();
+
+                    if (s == sysId && a == accId) {
+                        String foundId = n.has("RequestID") ? n.get("RequestID").asText() : 
+                                       (n.has("RequestId") ? n.get("RequestId").asText() : "");
+                        System.out.println("ℹ️ [BeyondTrust] Mevcut bir RequestID bulundu: " + foundId);
+                        return foundId;
+                    }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            // "ignored" yerine artık buradayız!
+            System.err.println("❌ [BeyondTrust] findExistingReqId içinde hata oluştu:");
+            e.printStackTrace(); 
+        }
         return "";
     }
-
     private HttpRequest.Builder req(String path) {
         String key = (options.getApiKey() != null ? options.getApiKey() : "").replace("PS-Auth", "").trim();
         String k = "", r = options.getRunAsUser() != null ? options.getRunAsUser() : "";

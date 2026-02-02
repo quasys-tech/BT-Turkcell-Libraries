@@ -2,55 +2,43 @@ package com.turkcell.bt.java.demo;
 
 import com.turkcell.bt.java.BeyondTrustConfigurationManager;
 
-/**
- * ---------------------------------------------------------------------------
- * BEYONDTRUST ENTEGRASYON POC (Proof of Concept)
- * ---------------------------------------------------------------------------
- * Bu sınıf, kütüphanenin "Sıfır Ayar" (Zero Config) özelliği ile nasıl
- * başlatılacağını ve şifrelerin nasıl kullanılacağını gösterir.
- *
- * ÖN KOŞUL:
- * Uygulama çalıştırılmadan önce Kubernetes ConfigMap veya İşletim Sistemi
- * üzerinden aşağıdaki ortam değişkenlerinin set edilmiş olması gerekir:
- * - BEYONDTRUST_API_URL
- * - BEYONDTRUST_API_KEY
- * - BEYONDTRUST_MANAGED_ACCOUNTS
- * - BEYONDTRUST_SECRET_SAFE_PATHS
- * ---------------------------------------------------------------------------
- */
 public class POC {
 
     public static void main(String[] args) {
 
         System.out.println("🚀 Uygulama Başlatılıyor...");
 
-        // 1. BAŞLAT: createAndLoad() metodu ortam değişkenlerini otomatik okur.
-        // try-with-resources bloğu, uygulama kapanırken kaynakları temizler.
+        // ConfigMap'ten hangi key'leri arayacağımızı okuyoruz
+        String safeUserKey = System.getenv("BT_EXAMPLE_SAFE_USERNAME");
+        String safePassKey = System.getenv("BT_EXAMPLE_SAFE_PASSWORD");
+        String managedAccountKey = System.getenv("BT_EXAMPLE_ACCOUNT");
+
         try (var manager = BeyondTrustConfigurationManager.createAndLoad()) {
 
-            System.out.println("✅ BeyondTrust Servisi Hazır. Şifreler izleniyor...");
+            System.out.println("✅ BeyondTrust Servisi Hazır. İzlenen anahtarlar:");
+            System.out.println("👉 Safe User Key: " + safeUserKey);
+            System.out.println("👉 Safe Pass Key: " + safePassKey);
+            System.out.println("👉 Managed Account: " + managedAccountKey);
 
-            // 2. KULLAN: Sonsuz döngü (Gerçek uygulamada burası iş mantığınızdır)
             while (true) {
+                // ConfigMap'ten gelen key isimlerini kullanarak manager'dan değerleri çekiyoruz
+                String exampleUser = manager.getProperty(safeUserKey, "KEY_TANIMSIZ");
+                String examplePass = manager.getProperty(safePassKey, "KEY_TANIMSIZ");
+                String exampleAcc  = manager.getProperty(managedAccountKey, "KEY_TANIMSIZ");
 
-                // Şifreyi direkt key adıyla istiyoruz.
-                // Eğer arka planda refresh süresi (BT_REFRESH_TIME) dolduysa, yeni şifre gelir.
-                String dbPass = manager.getProperty("bt.acc.dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB", "BULUNAMADI");
-                String apiPass = manager.getProperty("bt.safe.ENES_SC_DEMO_DEV.secret1.password", "BULUNAMADI");
-
-                System.out.println("⏰ Zaman: " + System.currentTimeMillis());
-                System.out.println("🔐 DB Pass : " + dbPass);
-                System.out.println("🔐 API Pass: " + apiPass);
+                System.out.println("\n⏰ Zaman: " + System.currentTimeMillis());
+                System.out.println("👤 Safe Username: " + exampleUser);
+                System.out.println("🔑 Safe Password: " + examplePass);
+                System.out.println("🛡️ Account Pass : " + exampleAcc);
                 System.out.println("--------------------------------------------------");
 
                 try {
-                    Thread.sleep(5000); // 5 saniyede bir kontrol
+                    Thread.sleep(5000); 
                 } catch (InterruptedException e) {
                     System.out.println("🛑 Uygulama durduruluyor...");
                     break;
                 }
             }
         }
-        // manager.close() burada otomatik çağrılır.
     }
 }
