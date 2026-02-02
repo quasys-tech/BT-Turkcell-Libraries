@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-dotnet-poc
+  namespace: enes-bt-cache
+  labels:
+    app: bt-dotnet-poc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-dotnet-poc
+  template:
+    metadata:
+      labels:
+        app: bt-dotnet-poc
+    spec:
+      containers:
+        - name: poc-app
+          # Build ettiğin Docker imajı
+          image: docker.io/enespekdas/t-dotnet-lib:v1.0
+          imagePullPolicy: Always
+
+          # Tek hamlede tüm ConfigMap'i Env olarak içeri basıyoruz
+          envFrom:
+            - configMapRef:
+                name: bt-dotnet-config
+
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"

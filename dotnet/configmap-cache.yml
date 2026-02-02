@@ -1,19 +1,25 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: bt-dotnet-demo-cm
+  name: cache-bt-dotnet-config
   namespace: enes-bt-cache
 data:
-  # Kütüphanenin beklediği standart değişkenler
-  BEYONDTRUST_API_URL: "https://pam.quasys.com.tr/BeyondTrust/api/public/v3"
+  # Bağlantı ve Yetki
+  BT_EXAMPLE_SAFE_USERNAME: "bt.safe.ENES_SC_DEMO_DEV.secret1.username"
+  BT_EXAMPLE_SAFE_PASSWORD: "bt.safe.ENES_SC_DEMO_DEV.secret1.password"
+  BT_EXAMPLE_ACCOUNT: "bt.acc.EC2AMAZ-D6OKDG1.deneme"
   BEYONDTRUST_ENABLED: "true"
-  BEYONDTRUST_IGNORE_SSL_ERRORS: "true"
-  BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED: "false"
+  BEYONDTRUST_API_URL: "https://secrets-cache-service/BeyondTrust/api/public/v3"
+  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;"
+
+  # SSL ve Refresh Ayarları
+  BEYONDTRUST_IGNORE_SSL_ERRORS: "false"
+  BT_REFRESH_TIME: "20"
+
+  # Hangi veriler çekilecek?
   BEYONDTRUST_MANAGED_ACCOUNTS: "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme"
   BEYONDTRUST_SECRET_SAFE_PATHS: "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST"
-  BEYONDTRUST_REFRESH_INTERVAL: "20"
-  # API Key gibi hassas veriler normalde Secret olmalı ama CM isteğin üzerine buraya ekliyoruz
-  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;"
+  BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED: "true"
   BEYONDTRUST_CERTIFICATE_CONTENT: |-
     -----BEGIN CERTIFICATE-----
     MIID9jCCAt6gAwIBAgIULhVcmwid/0OyCBLCWzSWbJ/RuiEwDQYJKoZIhvcNAQEL

@@ -3,35 +3,43 @@ using Turkcell.BT.Dotnet.Lib;
 
 namespace Microsoft.Extensions.Configuration;
 
-/// <summary>
-/// IConfigurationBuilder için BeyondTrust entegrasyonu sağlayan genişletme metodları.
-/// </summary>
 public static class BeyondTrustExtensions
 {
     /// <summary>
-    /// Turkcell BeyondTrust Secret Management sistemini konfigürasyon kaynaklarına ekler.
-    /// Environment değişkenlerinden veya mevcut konfigürasyondan BEYONDTRUST_ ayarlarını okur.
+    /// Java'daki createAndLoad() mantığına eşdeğerdir. 
+    /// Ortam değişkenlerini (ConfigMap) otomatik tarar ve kütüphaneyi hazır hale getirir.
     /// </summary>
-    /// <param name="builder">Konfigürasyon oluşturucu</param>
-    /// <returns>Güncellenmiş konfigürasyon oluşturucu</returns>
     public static IConfigurationBuilder AddBeyondTrustSecrets(this IConfigurationBuilder builder)
     {
-        // Mevcut konfigürasyonu (Environment, appsettings vb.) geçici olarak derleyip ayarları okuyoruz
-        var tempConfig = builder.Build();
-        var options = tempConfig.Get<BeyondTrustOptions>() ?? new BeyondTrustOptions();
+        // 1. ADIM: Mevcut ortam değişkenlerini geçici olarak derle
+        // Bu sayede BEYONDTRUST_ ile başlayan değişkenlere erişebileceğiz
+        var tempConfig = new ConfigurationBuilder()
+            .AddEnvironmentVariables()
+            .Build();
 
-        // Kütüphane aktifse ve API anahtarı tanımlıysa kaynağı ekle
+        // 2. ADIM: Models.cs içindeki BeyondTrustOptions sınıfına otomatik map'le
+        // Bu işlem Java'daki "fromEnv()" metodunun yaptığı işi yapar.
+        var options = new BeyondTrustOptions();
+        tempConfig.Bind(options);
+
+        // 3. ADIM: Aktivasyon Kontrolü
         if (options.Enabled)
         {
-            if (!string.IsNullOrEmpty(options.ApiKey))
+            if (!string.IsNullOrEmpty(options.ApiKey) && !string.IsNullOrEmpty(options.ApiUrl))
             {
+                // Her şey hazır! Provider'ı sisteme dahil et.
+                // BeyondTrustConfigurationProvider.Load() metodun burada tetiklenecek.
                 builder.Add(new BeyondTrustConfigurationSource(options));
+                Console.WriteLine("🚀 [BeyondTrust] Zero-Config aktif. İlk veriler çekiliyor...");
             }
             else
             {
-                // Kritik: Aktif edilmek istenmiş ama API Key girilmemişse log basılır
-                Console.WriteLine("⚠️ [Turkcell.BT.BeyondTrust] Library is ENABLED but BEYONDTRUST_API_KEY is missing. Skipping source.");
+                Console.WriteLine("⚠️ [BeyondTrust] Kütüphane aktif (Enabled=true) fakat API_KEY veya URL eksik.");
             }
+        }
+        else
+        {
+            Console.WriteLine("ℹ️ [BeyondTrust] Kütüphane devre dışı (Enabled=false).");
         }
 
         return builder;

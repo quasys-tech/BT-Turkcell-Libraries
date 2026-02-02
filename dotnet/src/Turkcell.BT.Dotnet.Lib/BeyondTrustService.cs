@@ -24,10 +24,19 @@ public class BeyondTrustService : IDisposable
         var baseUrl = string.IsNullOrWhiteSpace(_options.ApiUrl) ? "https://localhost/" : _options.ApiUrl.TrimEnd('/') + "/";
 
         var handler = new HttpClientHandler();
+
         if (_options.IgnoreSslErrors) 
         {
-            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+            // 1. Sertifika doğrulamasını tamamen bypass et
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            
+            // 2. Bazı eski cache servisleri TLS 1.2 veya 1.1 bekleyebilir, kısıtlamayı kaldıralım
+            handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
         }
+
+        // Proxy ayarlarını devre dışı bırak (İç ağda hız kazanmak için)
+        handler.UseProxy = false;
+        handler.Proxy = null;
 
         _httpClient = new HttpClient(handler) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(30) };
 
@@ -215,23 +224,36 @@ public class BeyondTrustService : IDisposable
         try
         {
             var resp = await _httpClient.GetAsync("Requests").ConfigureAwait(false); 
-            if (!resp.IsSuccessStatusCode) return "";
+            if (!resp.IsSuccessStatusCode) 
+            {
+                Console.WriteLine($"⚠️ [BeyondTrust] Requests listelenemedi. Status: {resp.StatusCode}");
+                return "";
+            }
 
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
-            
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return "";
 
             foreach (var req in doc.RootElement.EnumerateArray())
             {
-                if (GetIntProp(req, "SystemID") == sysId && GetIntProp(req, "AccountID") == accId)
+                // Case-insensitive mülk okuma
+                int s = GetIntProp(req, "SystemID");
+                int a = GetIntProp(req, "AccountID");
+
+                if (s == sysId && a == accId)
                 {
-                    var rid = GetIntProp(req, "RequestID");
-                    return rid > 0 ? rid.ToString() : "";
+                    // RequestID veya RequestId her ikisini de kontrol et
+                    var ridProp = req.EnumerateObject()
+                        .FirstOrDefault(p => p.Name.Equals("RequestID", StringComparison.OrdinalIgnoreCase));
+                    
+                    return ridProp.Value.ValueKind != JsonValueKind.Undefined ? ridProp.Value.ToString() : "";
                 }
             }
-            return "";
         }
-        catch { return ""; }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ [BeyondTrust] findExistingReqId Hatası: {ex.Message}");
+        }
+        return "";
     }
 
     private int GetIntProp(JsonElement el, string name)
