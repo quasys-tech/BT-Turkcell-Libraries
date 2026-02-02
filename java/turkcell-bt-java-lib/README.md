@@ -57,6 +57,8 @@ Kütüphanenin çalışması için aşağıdaki ortam değişkenlerinin ConfigMa
 
 `BEYONDTRUST_SECRET_SAFE_PATHS` Secret Safe bilgileri , Birden fazla olduğu noktada "," ile ayrılır. `SafeFolder1,SafeFolder2`
 
+`BEYONDTRUST_ENABLED` Default da true olarak çalışır. Eğer BT entegrasyonu kapatılmak istenirse false yapılabilir.  ` true/false `
+
 
 ## 🔑 Key Formatı Kuralları
 Manager üzerinden şifre çağırırken aşağıdaki formatları kullanmalısınız:
