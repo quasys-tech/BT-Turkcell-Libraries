@@ -5,6 +5,9 @@ metadata:
   namespace: enes-bt-cache
 data:
   # Bağlantı ve Yetki
+  BT_EXAMPLE_SAFE_USERNAME: "bt.safe.ENES_SC_DEMO_DEV.secret1.username"
+  BT_EXAMPLE_SAFE_PASSWORD: "bt.safe.ENES_SC_DEMO_DEV.secret1.password"
+  BT_EXAMPLE_ACCOUNT: "bt.acc.EC2AMAZ-D6OKDG1.deneme"
   BEYONDTRUST_ENABLED: "true"
   BEYONDTRUST_API_URL: "https://pam.quasys.com.tr/BeyondTrust/api/public/v3"
   BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;"
