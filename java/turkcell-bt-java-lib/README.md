@@ -1,6 +1,10 @@
+
+# BeyondTrust Java Library Örnek Kullanımı 
 🚀 Hızlı Başlangıç (Entegrasyon)
-1. Bağımlılığı Ekle (Maven)
+## 1. Bağımlılığı Ekle (Maven)
 Projenizin pom.xml dosyasına kütüphaneyi ekleyin (JFrog/Artifactory entegrasyonu sonrası):
+
+```java
 
 <dependency>
     <groupId>com.turkcell.bt.java</groupId>
@@ -8,8 +12,13 @@ Projenizin pom.xml dosyasına kütüphaneyi ekleyin (JFrog/Artifactory entegrasy
     <version>1.0.0</version>
 </dependency>
 
-2. Kullanım (Kod)
+```
+
+## Kullanım (Kod)
+
 Uygulamanızın başlangıcında Manager'ı oluşturun ve şifreleri getProperty ile çağırın:
+
+```java
 
 import com.turkcell.bt.java.BeyondTrustConfigurationManager;
 
@@ -29,30 +38,37 @@ public class App {
     }
 }
 
+```
 
-⚙️ Yapılandırma (OpenShift / Deployment)
+## Yapılandırma (OpenShift / Deployment)
+
 Kütüphanenin çalışması için aşağıdaki ortam değişkenlerinin ConfigMap üzerinden pod'a enjekte edilmesi gerekir:
 
-Değişken Adı,Açıklama,Örnek Değer
-BEYONDTRUST_API_URL,BeyondTrust API adresi,https://secrets-cache-service/...
-BEYONDTRUST_API_KEY,Erişim anahtarı (PS-Auth),key=...; runas=...;
-BT_REFRESH_TIME,Yenileme periyodu (saniye),1800 (0 ise yenileme yapmaz)
-BEYONDTRUST_MANAGED_ACCOUNTS,İzlenecek hesaplar (;),System1.Acc1;System2.Acc2
-BEYONDTRUST_SECRET_SAFE_PATHS,"İzlenecek klasörler (,)","SafeFolder1,SafeFolder2"
-BEYONDTRUST_IGNORE_SSL_ERRORS,Sertifika hatası yoksayma,true
+
+`BEYONDTRUST_API_URL` Beyondtrust API Adresi -- `https://secrets-cache-service/BeyondTrust/api/public/v3`
+
+`BEYONDTRUST_API_KEY` Erişim Key'i  (PS-Auth) -- `BEYONDTRUST_API_KEY=..<ApiKey>.; runas=.<User>..;`
+
+`BT_REFRESH_TIME` Yenileme periyodu (saniye) , `default 1800 . 0 ise yenileme yapmaz`
+
+`BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` yetkili olunan tüm managed account'lar çekilsin mi ? ` true/false `
+
+`BEYONDTRUST_MANAGED_ACCOUNTS` Managed Account'lar (;) ile ayrılır . ManagedSystem.Managed Account key'i ile kour. `System1.Acc1;System2.Acc2`
+
+`BEYONDTRUST_SECRET_SAFE_PATHS` Secret Safe bilgileri , Birden fazla olduğu noktada "," ile ayrılır. `SafeFolder1,SafeFolder2`
 
 
-🔑 Key Formatı Kuralları
+## 🔑 Key Formatı Kuralları
 Manager üzerinden şifre çağırırken aşağıdaki formatları kullanmalısınız:
 
-Managed Accounts: bt.acc.[SystemName].[AccountName]
+Managed Accounts:` bt.acc.[SystemName].[AccountName] `
 
-Secret Safe (Şifre): bt.safe.[Folder].[Title].password
+Secret Safe (Şifre):` bt.safe.[Folder].[Title].password `
 
-Secret Safe (Kullanıcı): bt.safe.[Folder].[Title].username
+Secret Safe (Kullanıcı):` bt.safe.[Folder].[Title].username `
 
 
-🛠️ Sorun Giderme
+## 🛠️ Sorun Giderme
 LOGS: Uygulama başladığında 🚀 [BeyondTrust] Başlangıç verileri çekiliyor... logunu gördüğünüzden emin olun.
 
 NULL Hatası: Eğer loglarda BT Error: null görüyorsanız, BEYONDTRUST_API_URL veya API_KEY değerlerinin ConfigMap'te doğru tanımlandığını kontrol edin.
@@ -62,13 +78,13 @@ Refresh: Şifrelerin güncellenmesi için BT_REFRESH_TIME değerinin 0'dan büy�
 
 İpucu: Kütüphane içindeki createAndLoad() metodu AutoCloseable destekler. try-with-resources bloğu içinde kullanmanız, uygulama kapanırken arka plan thread'lerinin temizlenmesini sağlar
 
-Example Configmap  : 
+## Example Configmap 
 
-Appliance : 
+```java
 
-  BEYONDTRUST_ENABLED: "true"
-  BEYONDTRUST_API_URL: "https://pam.quasys.com.tr/BeyondTrust/api/public/v3"
-  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;"
+ BEYONDTRUST_ENABLED: "true"
+  BEYONDTRUST_API_URL: "https://pandora.turkcell.com.tr/BeyondTrust/api/public/v3"
+  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=pandora;"
 
   # SSL ve Refresh Ayarları
   BEYONDTRUST_IGNORE_SSL_ERRORS: "false"
@@ -76,7 +92,7 @@ Appliance :
 
   # Hangi veriler çekilecek?
   BEYONDTRUST_MANAGED_ACCOUNTS: "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme"
-  BEYONDTRUST_SECRET_SAFE_PATHS: "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST"
+  BEYONDTRUST_SECRET_SAFE_PATHS: "PANDORA_SC_DEMO_DEV,PANDORA_SC_DEMO_TEST"
   BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED: "false"
   BEYONDTRUST_CERTIFICATE_CONTENT: |-
     -----BEGIN CERTIFICATE-----
@@ -86,9 +102,13 @@ Appliance :
     MB4XDTI1MDgwMTAwMDAwMFoXDTI2MDkwMTIzNTk1OVowGjEYMBYGA1UEAwwPKi5x
     dWFzeXMuY29tLnRyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4BWo
     OI6cHZgV3pyvE8upY7Q7QoaIPHBVrdF6osShvYvcFAnstdHVJI/mFYak1JcEcPoA
+```
 
 
-Example APP : 
+### Example Application 
+
+
+```java
 
 package com.turkcell.bt.java.demo;
 
@@ -134,3 +154,4 @@ public class POC {
         }
     }
 }
+```
