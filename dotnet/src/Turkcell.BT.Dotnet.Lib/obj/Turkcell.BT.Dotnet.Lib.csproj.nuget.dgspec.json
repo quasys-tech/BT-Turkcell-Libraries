@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {}
+    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {}
   },
   "projects": {
-    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {
+    "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
+        "projectUniqueName": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
         "projectName": "Turkcell.BT.Dotnet.Lib",
-        "projectPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
+        "projectPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\Turkcell.BT.Dotnet.Lib.csproj",
         "packagesPath": "C:\\Users\\vagrant\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\obj\\",
+        "outputPath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\src\\Turkcell.BT.Dotnet.Lib\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\vagrant\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -45,13 +45,17 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
-            "Microsoft.Extensions.Configuration.Abstractions": {
+            "Microsoft.Extensions.Configuration": {
               "target": "Package",
-              "version": "[10.0.2, )"
+              "version": "[8.0.0, )"
             },
             "Microsoft.Extensions.Configuration.Binder": {
               "target": "Package",
-              "version": "[10.0.2, )"
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Configuration.EnvironmentVariables": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             }
           },
           "imports": [

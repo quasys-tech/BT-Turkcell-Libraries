@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Turkcell.BT.Dotnet.Lib")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+78d34ced94252520b646c54217806c8082167629")]
 [assembly: System.Reflection.AssemblyProductAttribute("Turkcell.BT.Dotnet.Lib")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Turkcell.BT.Dotnet.Lib")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
