@@ -71,7 +71,7 @@ void PrintAllBeyondTrustKeys(IConfiguration configuration)
 
 void SetEnvironmentVariables()
 {
-    Environment.SetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL", "20"); 
+    Environment.SetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL", "5"); 
     Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.quasys.com.tr/BeyondTrust/api/public/v3");
     Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;");
     Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
