@@ -4,10 +4,10 @@ using Microsoft.Extensions.Hosting;
 using Turkcell.BT.Dotnet.Lib; // Kütüphanen burası
 
 Console.WriteLine("====================================================");
-Console.WriteLine("🚀 TURKCELL BEYONDTRUST PAM LIBRARY - LIVE DEMO");
+Console.WriteLine("🚀 TURKCELL BEYONDTRUST PAM LIBRARY - OAUTH LIVE DEMO");
 Console.WriteLine("====================================================");
 
-// 1. Manuel Test Ortamı (Müşteride burası env veya appsettings olacak)
+// 1. Manuel Test Ortamı Ayarları (OAuth/App User için güncellendi)
 SetEnvironmentVariables();
 
 // 2. Uygulama Yapılandırması
@@ -20,8 +20,10 @@ builder.Configuration.AddBeyondTrustSecrets();
 var host = builder.Build();
 var config = host.Services.GetRequiredService<IConfiguration>();
 
-Console.WriteLine("🚀 Uygulama Başladı. Şifreler izleniyor...");
-Console.WriteLine("ℹ️  Refresh süresi: 20 saniye.\n");
+Console.WriteLine("\n🚀 Uygulama Başladı. Şifreler OAuth (AppUser) ile izleniyor...");
+// Refresh süresini env'den okuduğumuzu teyit edelim (default 20 değil artık 5 olacak)
+var refreshTime = Environment.GetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL") ?? "Unknown";
+Console.WriteLine($"ℹ️  Refresh süresi: {refreshTime} saniye.\n");
 
 // Başlangıçta yüklü keyleri görelim
 PrintAllBeyondTrustKeys(config);
@@ -33,9 +35,7 @@ var lastApiPass = "";
 while (true)
 {
     // config[...] üzerinden her zaman en taze veriyi çekiyoruz
-    //var currentDbPass = config["bt.acc.dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB"] ?? "YOK";
     var currentDbPass = config["bt.acc.EC2AMAZ-D6OKDG1.deneme"] ?? "YOK";
-    
     var currentApiPass = config["bt.safe.ENES_SC_DEMO_DEV.testtypesecret1.password"] ?? "YOK";
 
     if (currentDbPass != lastDbPass || currentApiPass != lastApiPass)
@@ -71,12 +71,22 @@ void PrintAllBeyondTrustKeys(IConfiguration configuration)
 
 void SetEnvironmentVariables()
 {
-    Environment.SetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL", "5"); 
+    // --- OAUTH (APP USER) AYARLARI ---
+    Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "true"); // Yeni modu aktif et
+    Environment.SetEnvironmentVariable("BEYONDTRUST_CLIENT_ID", "3de4ceb1-bd32-4088-816b-c23eff735d24");
+    Environment.SetEnvironmentVariable("BEYONDTRUST_CLIENT_SECRET", "AOsW+TtZsfx3IvRr0vtYJnnSwDldSv+l1GjZ5jQf03o=");
+    
+    // --- GENEL AYARLAR ---
     Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.quasys.com.tr/BeyondTrust/api/public/v3");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;");
     Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+    Environment.SetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL", "5"); // Hızlı test için 5 saniye
+    Environment.SetEnvironmentVariable("BEYONDTRUST_IGNORE_SSL_ERRORS", "true");
+
+    // --- HEDEF HESAPLAR VE SAFE'LER ---
     Environment.SetEnvironmentVariable("BEYONDTRUST_SECRET_SAFE_PATHS", "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST");
     Environment.SetEnvironmentVariable("BEYONDTRUST_MANAGED_ACCOUNTS", "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme");
     Environment.SetEnvironmentVariable("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", "true");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_IGNORE_SSL_ERRORS", "true");
+
+    // Not: API Key artık zorunlu değil, o yüzden sildim/yorum satırı yaptım.
+    // Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "..."); 
 }

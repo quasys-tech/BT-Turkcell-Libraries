@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+
 namespace Turkcell.BT.Dotnet.Lib;
 
 /// <summary>
@@ -16,6 +17,17 @@ public class BeyondTrustOptions
     [ConfigurationKeyName("BEYONDTRUST_API_KEY")]
     public string ApiKey { get; set; } = string.Empty;
 
+    // --- YENİ AUTH YÖNTEMİ PARAMETRELERİ ---
+    [ConfigurationKeyName("BEYONDTRUST_USE_APP_USER")]
+    public bool UseAppUser { get; set; } = true;
+
+    [ConfigurationKeyName("BEYONDTRUST_CLIENT_ID")]
+    public string? ClientId { get; set; }
+
+    [ConfigurationKeyName("BEYONDTRUST_CLIENT_SECRET")]
+    public string? ClientSecret { get; set; }
+    // ---------------------------------------
+
     [ConfigurationKeyName("BEYONDTRUST_RUNAS_USER")]
     public string? RunAsUser { get; set; }
 
@@ -24,6 +36,7 @@ public class BeyondTrustOptions
     
     [ConfigurationKeyName("BEYONDTRUST_CERTIFICATE_CONTENT")]
     public string? CertificateContent { get; set; }
+
     /// <summary>
     /// Şifrelerin yenilenme periyodu (Saniye). Varsayılan 30 dakika (1800 sn).
     /// </summary>
@@ -41,6 +54,17 @@ public class BeyondTrustOptions
 
     [ConfigurationKeyName("BEYONDTRUST_ALL_SECRETS_ENABLED")]
     public bool AllSecretsEnabled { get; set; } = false;
+}
+
+/// <summary>
+/// OAuth Token isteğinden dönen yanıt modeli.
+/// </summary>
+internal class TokenResponseDto
+{
+    public string? Access_Token { get; set; }
+    public int Expires_In { get; set; }
+    public string? Token_Type { get; set; }
+    public string? Scope { get; set; }
 }
 
 /// <summary>

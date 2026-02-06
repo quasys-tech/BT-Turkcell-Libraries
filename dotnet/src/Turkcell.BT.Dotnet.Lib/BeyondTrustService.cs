@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
+using System.Net.Http.Headers;
 
 // Test projesinden internal modellere erişim sağlar
 [assembly: InternalsVisibleTo("Turkcell.BT.Dotnet.Tests")]
@@ -96,9 +97,6 @@ public class BeyondTrustService : IDisposable
             }
         }
 
-
-
-
         // Bazı eski cache servisleri TLS 1.2 veya 1.1 bekleyebilir
         handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
 
@@ -108,26 +106,7 @@ public class BeyondTrustService : IDisposable
 
         _httpClient = new HttpClient(handler) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(30) };
 
-        ConfigureAuthentication();
-    }
-
-    private void ConfigureAuthentication()
-    {
-        var rawKey = (_options.ApiKey ?? "").Replace("PS-Auth", "", StringComparison.OrdinalIgnoreCase).Trim();
-        string key = "", runas = _options.RunAsUser ?? "";
-
-        foreach (var p in rawKey.Split(';'))
-        {
-            var part = p.Trim();
-            if (part.StartsWith("key=", StringComparison.OrdinalIgnoreCase)) key = part[4..];
-            else if (part.StartsWith("runas=", StringComparison.OrdinalIgnoreCase)) runas = part[6..];
-            else if (string.IsNullOrEmpty(key)) key = part;
-        }
-
-        var authHeader = $"PS-Auth key={key};";
-        if (!string.IsNullOrEmpty(runas)) authHeader += $" runas={runas};";
-        
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
+        // Authentication yapılandırmasını FetchAllSecretsAsync içerisinde dinamik olarak yöneteceğiz.
     }
 
     public async Task<Dictionary<string, string?>> FetchAllSecretsAsync()
@@ -136,8 +115,18 @@ public class BeyondTrustService : IDisposable
 
         try
         {
-            // Session başlatma denemesi
-            try { await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false); } catch { }
+            // --- AUTHENTICATION SEÇİMİ ---
+            if (_options.UseAppUser)
+            {
+                // Yeni Yöntem: OAuth2 Client Credentials
+                await LoginWithOAuthAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                // Eski Yöntem: API Key
+                await LoginWithApiKeyAsync().ConfigureAwait(false);
+            }
+            // -----------------------------
 
             if (_options.AllManagedAccountsEnabled || !string.IsNullOrWhiteSpace(_options.ManagedAccounts))
             {
@@ -156,6 +145,70 @@ public class BeyondTrustService : IDisposable
         }
 
         return configData;
+    }
+
+    // --- YENİ OAUTH LOGIN METODU ---
+    private async Task LoginWithOAuthAsync()
+    {
+        // 1. ADIM: Token Almak için Header Temizliği ve Hazırlığı
+        _httpClient.DefaultRequestHeaders.Clear();
+        // Token endpoint'i genelde Authorization header'ına ihtiyaç duymaz ama 
+        // BT dokümanına/curl örneğine göre "Authorization: PS-Auth" gerekebiliyor.
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "PS-Auth");
+
+        var tokenParams = new Dictionary<string, string>
+        {
+            { "grant_type", "client_credentials" },
+            { "client_id", _options.ClientId ?? "" },
+            { "client_secret", _options.ClientSecret ?? "" }
+        };
+
+        var tokenResp = await _httpClient.PostAsync("Auth/Connect/Token", new FormUrlEncodedContent(tokenParams)).ConfigureAwait(false);
+        tokenResp.EnsureSuccessStatusCode();
+
+        var tokenJson = await tokenResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var tokenData = JsonSerializer.Deserialize<TokenResponseDto>(tokenJson, _jsonOptions);
+
+        if (string.IsNullOrEmpty(tokenData?.Access_Token))
+            throw new Exception("OAuth Access Token alınamadı.");
+
+        // 2. ADIM: Bearer Token'ı Header'a Set Et
+        _httpClient.DefaultRequestHeaders.Clear();
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenData.Access_Token);
+
+        // 3. ADIM: SignAppin
+        var signAppinResp = await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false);
+        signAppinResp.EnsureSuccessStatusCode();
+    }
+
+    // --- ESKİ API KEY LOGIN METODU ---
+    private async Task LoginWithApiKeyAsync()
+    {
+        _httpClient.DefaultRequestHeaders.Clear();
+        
+        var rawKey = (_options.ApiKey ?? "").Replace("PS-Auth", "", StringComparison.OrdinalIgnoreCase).Trim();
+        string key = "", runas = _options.RunAsUser ?? "";
+
+        foreach (var p in rawKey.Split(';'))
+        {
+            var part = p.Trim();
+            if (part.StartsWith("key=", StringComparison.OrdinalIgnoreCase)) key = part[4..];
+            else if (part.StartsWith("runas=", StringComparison.OrdinalIgnoreCase)) runas = part[6..];
+            else if (string.IsNullOrEmpty(key)) key = part;
+        }
+
+        var authHeader = $"PS-Auth key={key};";
+        if (!string.IsNullOrEmpty(runas)) authHeader += $" runas={runas};";
+        
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
+
+        // SignAppin
+        // Hata fırlatmaması için try-catch (Eski yapıyı korumak adına)
+        try 
+        { 
+            await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false); 
+        } 
+        catch { }
     }
 
     private async Task ProcessManagedAccountsAsync(Dictionary<string, string?> dict)

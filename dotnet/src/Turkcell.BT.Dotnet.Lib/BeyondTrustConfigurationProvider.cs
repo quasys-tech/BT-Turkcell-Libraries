@@ -30,13 +30,17 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
     /// </summary>
     public override void Load()
     {
-        if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.ApiKey))
+        // 1. Kritik Kontrol: Sadece Enabled false ise duruyoruz.
+        // Eski kodda burada ApiKey kontrolü vardı, onu kaldırdık çünkü artık OAuth (AppUser) kullanıyor olabiliriz.
+        if (!_options.Enabled)
         {
             return;
         }
 
+        // 2. İlk Veriyi Yükle
         LoadDataInternal();
 
+        // 3. Periyodik Yenileme Zamanlayıcısını Kur
         if (_options.RefreshIntervalSeconds > 0)
         {
             var interval = TimeSpan.FromSeconds(_options.RefreshIntervalSeconds);
@@ -60,13 +64,17 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
             lock (_lock)
             {
                 using var service = new BeyondTrustService(_options);
+                
+                // Servis artık options içindeki UseAppUser bayrağına göre 
+                // ya OAuth ya da API Key ile token alıp veriyi çekecek.
                 var newData = service.FetchAllSecretsAsync().GetAwaiter().GetResult();
 
                 if (newData != null && newData.Count > 0)
                 {
-                    Data = newData;
+                    // Case-Insensitive dictionary olarak set ediyoruz ki key erişiminde sorun yaşanmasın
+                    Data = new Dictionary<string, string?>(newData, StringComparer.OrdinalIgnoreCase);
                     
-                    // Uygulama genelinde konfigürasyonun değiştiğini bildirir
+                    // Uygulama genelinde konfigürasyonun değiştiğini bildirir (IOptionsMonitor tetikler)
                     OnReload();
                 }
             }
@@ -87,12 +95,13 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
             
             if (data != null && data.Count > 0)
             {
-                Data = data;
+                Data = new Dictionary<string, string?>(data, StringComparer.OrdinalIgnoreCase);
             }
         }
         catch (Exception ex)
         {
-            // İlk yükleme hatası kritik olabilir, ancak uygulamanın çökmesini engellemek için sadece loglanır
+            // İlk yükleme hatası kritik olabilir, ancak uygulamanın çökmesini engellemek için sadece loglanır.
+            // Bu sayede uygulama (varsa) diğer config kaynaklarıyla çalışmaya çalışabilir.
             Console.WriteLine($"❌ [Turkcell.BT.BeyondTrust] Initial load error: {ex.Message}");
         }
     }
