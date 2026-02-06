@@ -26,6 +26,9 @@ public class BeyondTrustServiceTests : IDisposable
             Enabled = true,
             ApiUrl = "https://pam.test",
             ApiKey = "PS-Auth key=abc123; runas=turkcell_user;",
+            // Testlerin mevcut mock kurgusu "API Key" akışına göre olduğu için 
+            // AppUser modunu testlerde kapalı tutuyoruz.
+            UseAppUser = false, 
             IgnoreSslErrors = true,
             AllManagedAccountsEnabled = true
         };
@@ -37,6 +40,8 @@ public class BeyondTrustServiceTests : IDisposable
     public async Task FetchAllSecretsAsync_WhenNoTargets_ShouldReturnEmpty()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
+        
+        // SignAppin için OK dönmeli (API Key modunda content okunmaz)
         handlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
@@ -62,14 +67,14 @@ public class BeyondTrustServiceTests : IDisposable
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
             .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) // 1. SignAppin
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) // 2. ManagedAccounts List
             {
                 Content = new StringContent($"[{{\"SystemName\":\"{complexSystem}\",\"AccountName\":\"{account}\",\"SystemId\":101,\"AccountId\":202}}]", Encoding.UTF8, "application/json")
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"REQ-999\"", Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"TurkcellPassword123!\"", Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"REQ-999\"", Encoding.UTF8, "application/json") }) // 3. Request
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"TurkcellPassword123!\"", Encoding.UTF8, "application/json") }) // 4. Credential
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)); // 5. Checkin
 
         using var service = new BeyondTrustService(_options);
         TestInfrastructure.InjectMockClient(service, new HttpClient(handlerMock.Object) { BaseAddress = new Uri(_options.ApiUrl) });
@@ -84,12 +89,12 @@ public class BeyondTrustServiceTests : IDisposable
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
             .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(@"[{""SystemName"":""S1"",""AccountName"":""A1"",""SystemId"":1,""AccountId"":1}]", Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Conflict))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(@"[{""SystemID"":1,""AccountID"":1,""RequestID"":555}]", Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"ConflictPass\"", Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) // 1. SignAppin
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(@"[{""SystemName"":""S1"",""AccountName"":""A1"",""SystemId"":1,""AccountId"":1}]", Encoding.UTF8, "application/json") }) // 2. List
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Conflict)) // 3. Request (Conflict)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(@"[{""SystemID"":1,""AccountID"":1,""RequestID"":555}]", Encoding.UTF8, "application/json") }) // 4. FindExisting (List Requests)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"ConflictPass\"", Encoding.UTF8, "application/json") }) // 5. Credential
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)); // 6. Checkin
 
         using var service = new BeyondTrustService(_options);
         TestInfrastructure.InjectMockClient(service, new HttpClient(handlerMock.Object) { BaseAddress = new Uri(_options.ApiUrl) });
@@ -104,7 +109,7 @@ public class BeyondTrustServiceTests : IDisposable
         var accountList = @"[{""SystemName"":""S1"",""AccountName"":""A1"",""SystemId"":1,""AccountId"":1}]";
         var handler1 = new Mock<HttpMessageHandler>();
         handler1.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) // SignAppin
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(accountList, Encoding.UTF8, "application/json") })
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"REQ-1\"", Encoding.UTF8, "application/json") })
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("\"Pass1\"", Encoding.UTF8, "application/json") })
@@ -116,11 +121,12 @@ public class BeyondTrustServiceTests : IDisposable
             await svc1.FetchAllSecretsAsync();
         }
 
+        // İkinci servis çağrısı: Network hatası simülasyonu
         var handler2 = new Mock<HttpMessageHandler>();
         handler2.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(accountList, Encoding.UTF8, "application/json") })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) // SignAppin (Success)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(accountList, Encoding.UTF8, "application/json") }) // List (Success)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.InternalServerError)); // Request (Fail) -> Cache'e gitmeli
 
         using (var svc2 = new BeyondTrustService(_options))
         {
@@ -140,8 +146,8 @@ public class BeyondTrustServiceTests : IDisposable
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
             .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) // SignAppin
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) // Secret Safe List
             {
                 Content = new StringContent(@"[{""Folder"":""TurkcellVault"",""Title"":""DB_PASS"",""Username"":""sa"",""Password"":""secret123""}]", Encoding.UTF8, "application/json")
             });
@@ -157,9 +163,27 @@ public class BeyondTrustServiceTests : IDisposable
     }
 
     [Fact]
-    public void Configuration_AuthHeader_ShouldBeCorrect()
+    public async Task Configuration_AuthHeader_ShouldBeCorrect()
     {
+        // GÜNCELLEME: Sadece header kontrolü yapacağımız için 
+        // veri çekme işlemlerini kapatıyoruz. Yoksa mock setup'ı yetersiz kalıp Json hatası veriyor.
+        _options.AllManagedAccountsEnabled = false;
+        _options.ManagedAccounts = null;
+        _options.SecretSafePaths = null;
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)); // SignAppin cevabı
+
         using var service = new BeyondTrustService(_options);
+        
+        // Mock client enjekte et (yoksa gerçek adrese gitmeye çalışır)
+        TestInfrastructure.InjectMockClient(service, new HttpClient(handlerMock.Object) { BaseAddress = new Uri(_options.ApiUrl) });
+
+        // Header'ın set edilmesi için tetikle
+        await service.FetchAllSecretsAsync();
+
         var client = TestInfrastructure.GetPrivateField<HttpClient>(service, "_httpClient");
         Assert.NotNull(client);
 
