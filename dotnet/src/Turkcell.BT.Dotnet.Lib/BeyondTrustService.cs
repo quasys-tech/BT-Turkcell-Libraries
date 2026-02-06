@@ -4,6 +4,7 @@ using System.Net;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
 
 // Test projesinden internal modellere erişim sağlar
 [assembly: InternalsVisibleTo("Turkcell.BT.Dotnet.Tests")]
@@ -34,29 +35,69 @@ public class BeyondTrustService : IDisposable
         }
         else if (!string.IsNullOrWhiteSpace(_options.CertificateContent))
         {
-            // Kurumsal Güvenlik: Sadece verilen sertifikayı Trust-Anchor olarak kabul et
-            try 
+            try
             {
-                var certBytes = Encoding.UTF8.GetBytes(_options.CertificateContent);
-                var trustedCert = new X509Certificate2(certBytes);
+                var pem = _options.CertificateContent.Replace("\\n", "\n", StringComparison.Ordinal);
 
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => 
+                var trustedThumbprints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                const string begin = "-----BEGIN CERTIFICATE-----";
+                const string end = "-----END CERTIFICATE-----";
+
+                int pos = 0;
+                while (true)
                 {
-                    // Sunucu sertifikası bizim verdiğimiz sertifika ile eşleşiyor mu? (Thumbprint kontrolü)
-                    if (cert != null && cert.GetCertHashString() == trustedCert.GetCertHashString())
+                    int start = pem.IndexOf(begin, pos, StringComparison.Ordinal);
+                    if (start < 0) break;
+
+                    int finish = pem.IndexOf(end, start, StringComparison.Ordinal);
+                    if (finish < 0) break;
+
+                    finish += end.Length;
+                    var oneCertPem = pem.Substring(start, finish - start);
+
+                    using (var c = X509Certificate2.CreateFromPem(oneCertPem))
                     {
-                        return true;
+                        trustedThumbprints.Add(c.Thumbprint ?? c.GetCertHashString());
                     }
-                    
-                    // Standart zincir doğrulaması başarılıysa geç
+
+                    pos = finish;
+                }
+
+                if (trustedThumbprints.Count == 0)
+                    throw new InvalidOperationException("PEM içinde CERTIFICATE bloğu bulunamadı.");
+
+                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+                {
+                    // Leaf match
+                    if (cert != null)
+                    {
+                        var tp = cert.GetCertHashString();
+                        if (trustedThumbprints.Contains(tp)) return true;
+                    }
+
+                    // Chain match (bundle/chain toleransı)
+                    if (chain?.ChainElements != null)
+                    {
+                        foreach (var el in chain.ChainElements)
+                        {
+                            var tp = el.Certificate.Thumbprint ?? el.Certificate.GetCertHashString();
+                            if (trustedThumbprints.Contains(tp)) return true;
+                        }
+                    }
+
+                    // Normal trust store doğrulaması
                     return errors == System.Net.Security.SslPolicyErrors.None;
                 };
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ [BeyondTrust] Sertifika yüklenemedi, standart doğrulama kullanılacak: {ex.Message}");
+                Console.WriteLine($"⚠️ [BeyondTrust] PEM sertifika yüklenemedi, standart doğrulama kullanılacak: {ex.Message}");
             }
         }
+
+
+
 
         // Bazı eski cache servisleri TLS 1.2 veya 1.1 bekleyebilir
         handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;

@@ -1,15 +1,15 @@
 {
   "version": 2,
-  "dgSpecHash": "Y+SbVJ6Gc+Q=",
+  "dgSpecHash": "9nzvtDkgvjs=",
   "success": true,
-  "projectFilePath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\dotnet\\tests\\Turkcell.BT.Dotnet.Tests\\Turkcell.BT.Dotnet.Tests.csproj",
+  "projectFilePath": "C:\\Users\\vagrant\\Desktop\\QuasysTech\\Turkcell\\BT-Turkcell-Libraries\\dotnet\\tests\\Turkcell.BT.Dotnet.Tests\\Turkcell.BT.Dotnet.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\vagrant\\.nuget\\packages\\castle.core\\5.1.1\\castle.core.5.1.1.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\coverlet.collector\\6.0.4\\coverlet.collector.6.0.4.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.codecoverage\\17.8.0\\microsoft.codecoverage.17.8.0.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.2\\microsoft.extensions.configuration.10.0.2.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.2\\microsoft.extensions.configuration.abstractions.10.0.2.nupkg.sha512",
-    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.binder\\10.0.2\\microsoft.extensions.configuration.binder.10.0.2.nupkg.sha512",
+    "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.binder\\8.0.0\\microsoft.extensions.configuration.binder.8.0.0.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.configuration.environmentvariables\\10.0.2\\microsoft.extensions.configuration.environmentvariables.10.0.2.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.2\\microsoft.extensions.primitives.10.0.2.nupkg.sha512",
     "C:\\Users\\vagrant\\.nuget\\packages\\microsoft.net.test.sdk\\17.8.0\\microsoft.net.test.sdk.17.8.0.nupkg.sha512",

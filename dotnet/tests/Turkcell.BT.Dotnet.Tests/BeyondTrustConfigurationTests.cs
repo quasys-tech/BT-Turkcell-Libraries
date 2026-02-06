@@ -1,6 +1,5 @@
 using Xunit;
 using Microsoft.Extensions.Configuration;
-
 using Turkcell.BT.Dotnet.Lib;
 
 namespace Turkcell.BT.Dotnet.Tests;
@@ -20,14 +19,21 @@ public class BeyondTrustConfigurationTests
     public void Extensions_AddBeyondTrustSecrets_ShouldAddSource()
     {
         Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "key=test");
-        
-        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
-        builder.AddBeyondTrustSecrets();
+        Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.test");
+        Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "PS-Auth key=test;");
 
-        Assert.Contains(builder.Sources, s => s is BeyondTrustConfigurationSource);
+        try
+        {
+            var builder = new ConfigurationBuilder().AddEnvironmentVariables();
+            builder.AddBeyondTrustSecrets();
 
-        Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", null);
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", null);
+            Assert.Contains(builder.Sources, s => s is BeyondTrustConfigurationSource);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", null);
+            Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", null);
+            Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", null);
+        }
     }
 }

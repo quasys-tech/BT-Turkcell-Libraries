@@ -27,7 +27,7 @@ public class BeyondTrustOptions
     /// <summary>
     /// Şifrelerin yenilenme periyodu (Saniye). Varsayılan 30 dakika (1800 sn).
     /// </summary>
-    [ConfigurationKeyName("BT_REFRESH_TIME")]
+    [ConfigurationKeyName("BEYONDTRUST_REFRESH_INTERVAL")]
     public int RefreshIntervalSeconds { get; set; } = 1800;
 
     [ConfigurationKeyName("BEYONDTRUST_MANAGED_ACCOUNTS")]

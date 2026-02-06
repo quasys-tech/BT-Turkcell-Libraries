@@ -2,6 +2,9 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,7 +62,7 @@ public class BeyondTrustServiceTests : IDisposable
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
             .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)) 
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent($"[{{\"SystemName\":\"{complexSystem}\",\"AccountName\":\"{account}\",\"SystemId\":101,\"AccountId\":202}}]", Encoding.UTF8, "application/json")
@@ -148,7 +151,7 @@ public class BeyondTrustServiceTests : IDisposable
 
         var result = await service.FetchAllSecretsAsync();
         var expectedKey = "bt.safe.TurkcellVault.DB_PASS.password";
-        
+
         Assert.True(result.ContainsKey(expectedKey));
         Assert.Equal("secret123", result[expectedKey]);
     }
@@ -158,10 +161,85 @@ public class BeyondTrustServiceTests : IDisposable
     {
         using var service = new BeyondTrustService(_options);
         var client = TestInfrastructure.GetPrivateField<HttpClient>(service, "_httpClient");
-        var auth = client!.DefaultRequestHeaders.GetValues("Authorization").First();
+        Assert.NotNull(client);
 
+        var auth = client!.DefaultRequestHeaders.GetValues("Authorization").First();
         Assert.Contains("key=abc123", auth);
         Assert.Contains("runas=turkcell_user", auth);
+    }
+
+    [Fact]
+    public void Ctor_WithPemBundle_ShouldConfigureCustomCertValidation_AndTrustKnownCert()
+    {
+        // Arrange: PEM path'e girelim
+        _options.IgnoreSslErrors = false;
+
+        // Bu cert'i bundle'a koyacağız ve callback'e "server cert" diye bunu vereceğiz.
+        using var trustedCert = CreateSelfSignedCert("CN=trusted");
+
+        var pemTrusted = ToPem(trustedCert);
+        var pemOther = CreateSelfSignedPem("CN=other");
+
+        _options.CertificateContent = pemTrusted + "\n" + pemOther;
+
+        // Act
+        using var service = new BeyondTrustService(_options);
+
+        // Assert: handler callback set edilmiş olmalı
+        var client = TestInfrastructure.GetPrivateField<HttpClient>(service, "_httpClient");
+        Assert.NotNull(client);
+
+        var handler = GetInnerHandler(client!);
+        Assert.NotNull(handler);
+        Assert.NotNull(handler!.ServerCertificateCustomValidationCallback);
+
+        // Callback gerçekten "trustedCert" için true dönmeli (leaf match)
+        var ok = handler.ServerCertificateCustomValidationCallback(
+            new HttpRequestMessage(HttpMethod.Get, "https://pam.test/"),
+            trustedCert,
+            null,
+            SslPolicyErrors.RemoteCertificateChainErrors);
+
+        Assert.True(ok);
+    }
+
+    private static HttpClientHandler? GetInnerHandler(HttpClient client)
+    {
+        // net8'de HttpClient -> HttpMessageInvoker._handler alanı var
+        var fi = typeof(HttpMessageInvoker).GetField("_handler",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        return fi?.GetValue(client) as HttpClientHandler;
+    }
+
+    private static string CreateSelfSignedPem(string subjectName)
+    {
+        using var cert = CreateSelfSignedCert(subjectName);
+        return ToPem(cert);
+    }
+
+    private static string ToPem(X509Certificate2 cert)
+    {
+        var der = cert.Export(X509ContentType.Cert);
+        var b64 = Convert.ToBase64String(der);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("-----BEGIN CERTIFICATE-----");
+        for (int i = 0; i < b64.Length; i += 64)
+            sb.AppendLine(b64.Substring(i, Math.Min(64, b64.Length - i)));
+        sb.AppendLine("-----END CERTIFICATE-----");
+        return sb.ToString();
+    }
+
+    private static X509Certificate2 CreateSelfSignedCert(string subjectName)
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest(subjectName, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, false));
+        req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
+
+        return req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30));
     }
 
     public void Dispose() => GC.SuppressFinalize(this);
