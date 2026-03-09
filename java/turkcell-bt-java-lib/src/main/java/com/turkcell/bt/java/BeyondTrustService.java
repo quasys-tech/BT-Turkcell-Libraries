@@ -22,6 +22,7 @@ public class BeyondTrustService implements AutoCloseable {
     private final BeyondTrustOptions options;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private String bearerToken;
     private static final Map<String, String> passwordCache = new ConcurrentHashMap<>();
 
     public BeyondTrustService(BeyondTrustOptions options) {
@@ -55,10 +56,11 @@ public class BeyondTrustService implements AutoCloseable {
     public Map<String, String> fetchAllSecrets() {
         Map<String, String> data = new HashMap<>();
         try {
-            // SignAppin (Sessizce)
-            try {
-                httpClient.send(req("Auth/SignAppin").POST(HttpRequest.BodyPublishers.noBody()).header("Content-Type", "application/json").build(), HttpResponse.BodyHandlers.discarding());
-            } catch (Exception ignored) {}
+            if (options.isUseAppUser()) {
+                loginWithOAuth();
+            } else {
+                loginWithApiKey();
+            }
 
             // Managed Accounts
             if (options.isAllManagedAccountsEnabled() || (options.getManagedAccounts() != null && !options.getManagedAccounts().isBlank())) {
@@ -72,6 +74,61 @@ public class BeyondTrustService implements AutoCloseable {
             System.err.println("❌ [BeyondTrust] fetchAllSecrets patladı:");
             ex.printStackTrace();        }
         return data;
+    }
+
+    private void loginWithOAuth() throws Exception {
+        bearerToken = null;
+
+        String formBody = "grant_type=client_credentials"
+                + "&client_id=" + URLEncoder.encode(options.getClientId() != null ? options.getClientId() : "", StandardCharsets.UTF_8)
+                + "&client_secret=" + URLEncoder.encode(options.getClientSecret() != null ? options.getClientSecret() : "", StandardCharsets.UTF_8);
+
+        HttpRequest tokenReq = HttpRequest.newBuilder()
+                .uri(URI.create(options.getApiUrl().replaceAll("/+$", "") + "/Auth/Connect/Token"))
+                .version(HttpClient.Version.HTTP_1_1)
+                .header("Authorization", "PS-Auth")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .timeout(Duration.ofSeconds(30))
+                .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                .build();
+
+        HttpResponse<String> tokenResp = httpClient.send(tokenReq, HttpResponse.BodyHandlers.ofString());
+        if (!isSuccess(tokenResp.statusCode())) {
+            throw new IllegalStateException("OAuth token request failed. Status=" + tokenResp.statusCode());
+        }
+
+        JsonNode tokenJson = objectMapper.readTree(tokenResp.body() == null ? "" : tokenResp.body());
+        String token = readJsonValueIgnoreCase(tokenJson, "access_token");
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException("OAuth access token not found.");
+        }
+
+        bearerToken = token;
+
+        HttpResponse<Void> signResp = httpClient.send(
+                req("Auth/SignAppin")
+                        .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                        .header("Content-Type", "application/json")
+                        .build(),
+                HttpResponse.BodyHandlers.discarding()
+        );
+
+        if (!isSuccess(signResp.statusCode())) {
+            throw new IllegalStateException("Auth/SignAppin failed. Status=" + signResp.statusCode());
+        }
+    }
+
+    private void loginWithApiKey() {
+        bearerToken = null;
+        try {
+            httpClient.send(
+                    req("Auth/SignAppin")
+                            .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                            .header("Content-Type", "application/json")
+                            .build(),
+                    HttpResponse.BodyHandlers.discarding()
+            );
+        } catch (Exception ignored) {}
     }
 
     private void processManagedAccounts(Map<String, String> dict) throws Exception {
@@ -176,6 +233,26 @@ public class BeyondTrustService implements AutoCloseable {
         return "";
     }
     private HttpRequest.Builder req(String path) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(options.getApiUrl().replaceAll("/+$", "") + "/" + path))
+                .version(HttpClient.Version.HTTP_1_1)
+                .timeout(Duration.ofSeconds(30));
+
+        if (options.isUseAppUser()) {
+            if (bearerToken != null && !bearerToken.isBlank()) {
+                builder.header("Authorization", "Bearer " + bearerToken);
+            }
+            return builder;
+        }
+
+        String auth = buildApiKeyAuthHeader();
+        if (!auth.isBlank()) {
+            builder.header("Authorization", auth);
+        }
+        return builder;
+    }
+
+    private String buildApiKeyAuthHeader() {
         String key = (options.getApiKey() != null ? options.getApiKey() : "").replace("PS-Auth", "").trim();
         String k = "", r = options.getRunAsUser() != null ? options.getRunAsUser() : "";
         for (String p : key.split(";")) {
@@ -183,8 +260,7 @@ public class BeyondTrustService implements AutoCloseable {
             else if (p.trim().toLowerCase().startsWith("runas=")) r = p.trim().substring(6);
             else if (k.isEmpty() && !p.trim().isEmpty()) k = p.trim();
         }
-        String auth = "PS-Auth key=" + k + ";" + (!r.isEmpty() ? " runas=" + r + ";" : "");
-        return HttpRequest.newBuilder().uri(URI.create(options.getApiUrl().replaceAll("/+$", "") + "/" + path)).version(HttpClient.Version.HTTP_1_1).header("Authorization", auth).timeout(Duration.ofSeconds(30));
+        return "PS-Auth key=" + k + ";" + (!r.isEmpty() ? " runas=" + r + ";" : "");
     }
 
     private List<ManagedAccountDto> filterAccounts(List<ManagedAccountDto> all) {
@@ -198,6 +274,22 @@ public class BeyondTrustService implements AutoCloseable {
     }
 
     private String sanitize(String s) { return s == null ? "" : s.trim().replaceAll("^\"|\"$", "").replace("\\\"", "\""); }
+
+    private String readJsonValueIgnoreCase(JsonNode node, String key) {
+        if (node == null || !node.isObject()) return null;
+        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
+            if (field.getKey().equalsIgnoreCase(key)) {
+                return field.getValue().asText();
+            }
+        }
+        return null;
+    }
+
+    private boolean isSuccess(int statusCode) {
+        return statusCode >= 200 && statusCode < 300;
+    }
 
     private String cleanPassword(String p) {
         p = sanitize(p);

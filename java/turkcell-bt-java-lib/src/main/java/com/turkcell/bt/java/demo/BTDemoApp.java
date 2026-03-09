@@ -22,6 +22,9 @@ public class BTDemoApp {
         BeyondTrustOptions options = new BeyondTrustOptions();
         options.setApiUrl(System.getProperty("BEYONDTRUST_API_URL"));
         options.setApiKey(System.getProperty("BEYONDTRUST_API_KEY"));
+        options.setUseAppUser(Boolean.parseBoolean(System.getProperty("BEYONDTRUST_USE_APP_USER", "false")));
+        options.setClientId(System.getProperty("BEYONDTRUST_CLIENT_ID"));
+        options.setClientSecret(System.getProperty("BEYONDTRUST_CLIENT_SECRET"));
         options.setEnabled(Boolean.parseBoolean(System.getProperty("BEYONDTRUST_ENABLED", "true")));
         options.setSecretSafePaths(System.getProperty("BEYONDTRUST_SECRET_SAFE_PATHS"));
         options.setManagedAccounts(System.getProperty("BEYONDTRUST_MANAGED_ACCOUNTS"));
@@ -83,9 +86,13 @@ public class BTDemoApp {
 
     private static void setDemoEnvironment() {
         System.setProperty("BT_REFRESH_TIME", "20");
-        System.setProperty("BEYONDTRUST_API_URL", "https://bt-secrets-cache:1858/BeyondTrust/api/public/v3");
-        //System.setProperty("BEYONDTRUST_API_URL", "https://pam.quasys.com.tr/BeyondTrust/api/public/v3");
+        //System.setProperty("BEYONDTRUST_API_URL", "https://bt-secrets-cache:1858/BeyondTrust/api/public/v3");
+        System.setProperty("BEYONDTRUST_API_URL", "https://pam.quasys.com.tr/BeyondTrust/api/public/v3");
+        System.setProperty("BEYONDTRUST_USE_APP_USER", "false");
         System.setProperty("BEYONDTRUST_API_KEY", "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;");
+        //System.setProperty("BEYONDTRUST_USE_APP_USER", "true");
+        //System.setProperty("BEYONDTRUST_CLIENT_ID", "3de4ceb1-bd32-4088-816b-c23eff735d24");
+        //System.setProperty("BEYONDTRUST_CLIENT_SECRET", "AOsW+TtZsfx3IvRr0vtYJnnSwDldSv+l1GjZ5jQf03o=");
         System.setProperty("BEYONDTRUST_ENABLED", "true");
         System.setProperty("BEYONDTRUST_SECRET_SAFE_PATHS", "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST");
         System.setProperty("BEYONDTRUST_MANAGED_ACCOUNTS", "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme");
