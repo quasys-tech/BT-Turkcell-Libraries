@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Turkcell.BT.Dotnet.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c93c3a791167c85108adbc8d1855681a89d09e03")]
 [assembly: System.Reflection.AssemblyProductAttribute("Turkcell.BT.Dotnet.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Turkcell.BT.Dotnet.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

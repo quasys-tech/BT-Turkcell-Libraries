@@ -4,6 +4,8 @@ using System.Net;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
+using System.Net.Http.Headers;
 
 // Test projesinden internal modellere erişim sağlar
 [assembly: InternalsVisibleTo("Turkcell.BT.Dotnet.Tests")]
@@ -34,27 +36,64 @@ public class BeyondTrustService : IDisposable
         }
         else if (!string.IsNullOrWhiteSpace(_options.CertificateContent))
         {
-            // Kurumsal Güvenlik: Sadece verilen sertifikayı Trust-Anchor olarak kabul et
-            try 
+            try
             {
-                var certBytes = Encoding.UTF8.GetBytes(_options.CertificateContent);
-                var trustedCert = new X509Certificate2(certBytes);
+                var pem = _options.CertificateContent.Replace("\\n", "\n", StringComparison.Ordinal);
 
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => 
+                var trustedThumbprints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                const string begin = "-----BEGIN CERTIFICATE-----";
+                const string end = "-----END CERTIFICATE-----";
+
+                int pos = 0;
+                while (true)
                 {
-                    // Sunucu sertifikası bizim verdiğimiz sertifika ile eşleşiyor mu? (Thumbprint kontrolü)
-                    if (cert != null && cert.GetCertHashString() == trustedCert.GetCertHashString())
+                    int start = pem.IndexOf(begin, pos, StringComparison.Ordinal);
+                    if (start < 0) break;
+
+                    int finish = pem.IndexOf(end, start, StringComparison.Ordinal);
+                    if (finish < 0) break;
+
+                    finish += end.Length;
+                    var oneCertPem = pem.Substring(start, finish - start);
+
+                    using (var c = X509Certificate2.CreateFromPem(oneCertPem))
                     {
-                        return true;
+                        trustedThumbprints.Add(c.Thumbprint ?? c.GetCertHashString());
                     }
-                    
-                    // Standart zincir doğrulaması başarılıysa geç
+
+                    pos = finish;
+                }
+
+                if (trustedThumbprints.Count == 0)
+                    throw new InvalidOperationException("PEM içinde CERTIFICATE bloğu bulunamadı.");
+
+                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+                {
+                    // Leaf match
+                    if (cert != null)
+                    {
+                        var tp = cert.GetCertHashString();
+                        if (trustedThumbprints.Contains(tp)) return true;
+                    }
+
+                    // Chain match (bundle/chain toleransı)
+                    if (chain?.ChainElements != null)
+                    {
+                        foreach (var el in chain.ChainElements)
+                        {
+                            var tp = el.Certificate.Thumbprint ?? el.Certificate.GetCertHashString();
+                            if (trustedThumbprints.Contains(tp)) return true;
+                        }
+                    }
+
+                    // Normal trust store doğrulaması
                     return errors == System.Net.Security.SslPolicyErrors.None;
                 };
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ [BeyondTrust] Sertifika yüklenemedi, standart doğrulama kullanılacak: {ex.Message}");
+                Console.WriteLine($"⚠️ [BeyondTrust] PEM sertifika yüklenemedi, standart doğrulama kullanılacak: {ex.Message}");
             }
         }
 
@@ -67,26 +106,7 @@ public class BeyondTrustService : IDisposable
 
         _httpClient = new HttpClient(handler) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(30) };
 
-        ConfigureAuthentication();
-    }
-
-    private void ConfigureAuthentication()
-    {
-        var rawKey = (_options.ApiKey ?? "").Replace("PS-Auth", "", StringComparison.OrdinalIgnoreCase).Trim();
-        string key = "", runas = _options.RunAsUser ?? "";
-
-        foreach (var p in rawKey.Split(';'))
-        {
-            var part = p.Trim();
-            if (part.StartsWith("key=", StringComparison.OrdinalIgnoreCase)) key = part[4..];
-            else if (part.StartsWith("runas=", StringComparison.OrdinalIgnoreCase)) runas = part[6..];
-            else if (string.IsNullOrEmpty(key)) key = part;
-        }
-
-        var authHeader = $"PS-Auth key={key};";
-        if (!string.IsNullOrEmpty(runas)) authHeader += $" runas={runas};";
-        
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
+        // Authentication yapılandırmasını FetchAllSecretsAsync içerisinde dinamik olarak yöneteceğiz.
     }
 
     public async Task<Dictionary<string, string?>> FetchAllSecretsAsync()
@@ -95,8 +115,18 @@ public class BeyondTrustService : IDisposable
 
         try
         {
-            // Session başlatma denemesi
-            try { await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false); } catch { }
+            // --- AUTHENTICATION SEÇİMİ ---
+            if (_options.UseAppUser)
+            {
+                // Yeni Yöntem: OAuth2 Client Credentials
+                await LoginWithOAuthAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                // Eski Yöntem: API Key
+                await LoginWithApiKeyAsync().ConfigureAwait(false);
+            }
+            // -----------------------------
 
             if (_options.AllManagedAccountsEnabled || !string.IsNullOrWhiteSpace(_options.ManagedAccounts))
             {
@@ -115,6 +145,70 @@ public class BeyondTrustService : IDisposable
         }
 
         return configData;
+    }
+
+    // --- YENİ OAUTH LOGIN METODU ---
+    private async Task LoginWithOAuthAsync()
+    {
+        // 1. ADIM: Token Almak için Header Temizliği ve Hazırlığı
+        _httpClient.DefaultRequestHeaders.Clear();
+        // Token endpoint'i genelde Authorization header'ına ihtiyaç duymaz ama 
+        // BT dokümanına/curl örneğine göre "Authorization: PS-Auth" gerekebiliyor.
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "PS-Auth");
+
+        var tokenParams = new Dictionary<string, string>
+        {
+            { "grant_type", "client_credentials" },
+            { "client_id", _options.ClientId ?? "" },
+            { "client_secret", _options.ClientSecret ?? "" }
+        };
+
+        var tokenResp = await _httpClient.PostAsync("Auth/Connect/Token", new FormUrlEncodedContent(tokenParams)).ConfigureAwait(false);
+        tokenResp.EnsureSuccessStatusCode();
+
+        var tokenJson = await tokenResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var tokenData = JsonSerializer.Deserialize<TokenResponseDto>(tokenJson, _jsonOptions);
+
+        if (string.IsNullOrEmpty(tokenData?.Access_Token))
+            throw new Exception("OAuth Access Token alınamadı.");
+
+        // 2. ADIM: Bearer Token'ı Header'a Set Et
+        _httpClient.DefaultRequestHeaders.Clear();
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenData.Access_Token);
+
+        // 3. ADIM: SignAppin
+        var signAppinResp = await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false);
+        signAppinResp.EnsureSuccessStatusCode();
+    }
+
+    // --- ESKİ API KEY LOGIN METODU ---
+    private async Task LoginWithApiKeyAsync()
+    {
+        _httpClient.DefaultRequestHeaders.Clear();
+        
+        var rawKey = (_options.ApiKey ?? "").Replace("PS-Auth", "", StringComparison.OrdinalIgnoreCase).Trim();
+        string key = "", runas = _options.RunAsUser ?? "";
+
+        foreach (var p in rawKey.Split(';'))
+        {
+            var part = p.Trim();
+            if (part.StartsWith("key=", StringComparison.OrdinalIgnoreCase)) key = part[4..];
+            else if (part.StartsWith("runas=", StringComparison.OrdinalIgnoreCase)) runas = part[6..];
+            else if (string.IsNullOrEmpty(key)) key = part;
+        }
+
+        var authHeader = $"PS-Auth key={key};";
+        if (!string.IsNullOrEmpty(runas)) authHeader += $" runas={runas};";
+        
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
+
+        // SignAppin
+        // Hata fırlatmaması için try-catch (Eski yapıyı korumak adına)
+        try 
+        { 
+            await _httpClient.PostAsync("Auth/SignAppin", new StringContent("{}", Encoding.UTF8, "application/json")).ConfigureAwait(false); 
+        } 
+        catch { }
     }
 
     private async Task ProcessManagedAccountsAsync(Dictionary<string, string?> dict)

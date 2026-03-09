@@ -25,6 +25,7 @@ class BeyondTrustServiceTest {
         options = new BeyondTrustOptions();
         options.setApiUrl("https://pam.test.local/");
         options.setApiKey("PS-Auth key=testKey; runas=testUser;");
+        options.setUseAppUser(false);
         options.setEnabled(true);
 
         mockHttpClient = mock(HttpClient.class);
@@ -133,6 +134,51 @@ class BeyondTrustServiceTest {
 
         assertNotNull(request, "POST isteği bulunamadı!");
         assertEquals("POST", request.method());
+    }
+
+    @Test
+    @DisplayName("App User: OAuth token alinir ve devam eden isteklerde Bearer kullanilir")
+    void testAppUserOAuthFlow() throws Exception {
+        options.setUseAppUser(true);
+        options.setClientId("test-client-id");
+        options.setClientSecret("test-client-secret");
+        options.setApiKey(null);
+        options.setManagedAccounts("TestSys.TestAcc");
+
+        HttpResponse<Object> respToken = mockResponse(200, "{\"access_token\":\"oauth-token-123\",\"expires_in\":3600}");
+        HttpResponse<Object> respSignAppin = mockResponse(200, "");
+        HttpResponse<Object> respList = mockResponse(200, "[{\"SystemName\":\"TestSys\",\"AccountName\":\"TestAcc\",\"SystemID\":7,\"AccountID\":9}]");
+        HttpResponse<Object> respPost = mockResponse(200, "1000");
+        HttpResponse<Object> respCred = mockResponse(200, "\"FromOAuth\"");
+        HttpResponse<Object> respCheckin = mockResponse(204, "");
+
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(respToken)
+                .thenReturn(respSignAppin)
+                .thenReturn(respList)
+                .thenReturn(respPost)
+                .thenReturn(respCred)
+                .thenReturn(respCheckin);
+
+        Map<String, String> result = service.fetchAllSecrets();
+        assertEquals("FromOAuth", result.get("bt.acc.TestSys.TestAcc"));
+
+        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(mockHttpClient, atLeast(1)).send(captor.capture(), any());
+
+        HttpRequest tokenRequest = captor.getAllValues().stream()
+                .filter(r -> r.uri().toString().endsWith("/Auth/Connect/Token"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(tokenRequest);
+        assertEquals("PS-Auth", tokenRequest.headers().firstValue("Authorization").orElse(""));
+
+        HttpRequest signAppinRequest = captor.getAllValues().stream()
+                .filter(r -> r.uri().toString().endsWith("/Auth/SignAppin"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(signAppinRequest);
+        assertEquals("Bearer oauth-token-123", signAppinRequest.headers().firstValue("Authorization").orElse(""));
     }
 
     // --- HELPER METOT (RAW MOCK KULLANIMI) ---

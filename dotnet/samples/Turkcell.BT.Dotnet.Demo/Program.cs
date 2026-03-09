@@ -79,4 +79,5 @@ void SetEnvironmentVariables()
     Environment.SetEnvironmentVariable("BEYONDTRUST_MANAGED_ACCOUNTS", "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme");
     Environment.SetEnvironmentVariable("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", "true");
     Environment.SetEnvironmentVariable("BEYONDTRUST_IGNORE_SSL_ERRORS", "true");
+    Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "false");
 }

@@ -22,5 +22,14 @@ class DtoTest {
         assertEquals("P", item.getPassword());
         assertEquals("U", item.getUsername());
         assertEquals("A", item.getAccount());
+
+        // BeyondTrustOptions auth fields
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setUseAppUser(true);
+        options.setClientId("cid");
+        options.setClientSecret("csecret");
+        assertTrue(options.isUseAppUser());
+        assertEquals("cid", options.getClientId());
+        assertEquals("csecret", options.getClientSecret());
     }
 }

@@ -42,23 +42,27 @@ public class BeyondTrustConfigurationProviderTests
     }
 
     [Fact]
-    public void Load_WhenApiKeyMissing_DoesNothing_AndDoesNotStartTimer()
+    public void Load_WhenApiKeyMissing_ShouldStillStartTimer()
     {
+        // GÜNCELLEME: Yeni mimaride API Key zorunluluğu Load aşamasında kaldırıldı.
+        // Çünkü AppUser (OAuth) kullanılıyor olabilir. Bu yüzden Timer başlamalıdır.
+        
         // Arrange
         var options = new BeyondTrustOptions
         {
             Enabled = true,
-            ApiKey = "",
+            ApiKey = "", // Key yok
             RefreshIntervalSeconds = 1
         };
         var provider = new BeyondTrustConfigurationProvider(options);
 
         // Act
-        provider.Load();
+        // Service içinde hata alsa bile try-catch ile yutulur, önemli olan timer'ın kurulması.
+        try { provider.Load(); } catch { }
 
         // Assert
         var timer = TestReflection.GetPrivateField<Timer>(provider, "_refreshTimer");
-        Assert.Null(timer);
+        Assert.NotNull(timer); // Timer ARTIK NULL OLMAMALI
     }
 
     [Fact]
@@ -69,13 +73,11 @@ public class BeyondTrustConfigurationProviderTests
         {
             Enabled = true,
             ApiKey = "key=abc",
-            RefreshIntervalSeconds = 60 // 1 dakika
+            RefreshIntervalSeconds = 60
         };
         var provider = new BeyondTrustConfigurationProvider(options);
 
         // Act
-        // Not: Load içinde API çağrısı olduğu için hata verebilir (Service mocklanmadığı için)
-        // Ancak amacımız timer'ın set edilip edilmediğini görmek.
         try { provider.Load(); } catch { }
 
         // Assert

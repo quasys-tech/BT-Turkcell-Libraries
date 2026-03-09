@@ -24,7 +24,7 @@ internal static class TestInfrastructure
     {
         var field = typeof(BeyondTrustService).GetField("_passwordCache", BindingFlags.Static | BindingFlags.NonPublic);
         var dict = (ConcurrentDictionary<string, string>)field?.GetValue(null)!;
-        dict.Clear();
+        dict?.Clear();
     }
 }
 

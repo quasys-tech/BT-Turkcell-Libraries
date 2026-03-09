@@ -37,8 +37,20 @@ public class BeyondTrustConfigurationManager implements AutoCloseable {
 
     // --- BAŞLATMA VE İLK YÜKLEME ---
     public void load() {
-        if (!options.isEnabled() || options.getApiKey() == null || options.getApiKey().isBlank()) {
-            System.out.println("⚠️ [BeyondTrust] Kütüphane devre dışı veya API Key eksik.");
+        if (!options.isEnabled()) {
+            System.out.println("⚠️ [BeyondTrust] Kutuphane devre disi.");
+            return;
+        }
+
+        boolean hasUrl = options.getApiUrl() != null && !options.getApiUrl().isBlank();
+        boolean oauthReady = options.isUseAppUser()
+                && options.getClientId() != null && !options.getClientId().isBlank()
+                && options.getClientSecret() != null && !options.getClientSecret().isBlank();
+        boolean apiKeyReady = !options.isUseAppUser()
+                && options.getApiKey() != null && !options.getApiKey().isBlank();
+
+        if (!hasUrl || (!oauthReady && !apiKeyReady)) {
+            System.out.println("⚠️ [BeyondTrust] Konfigurasyon eksik. API_URL ve auth parametrelerini kontrol edin.");
             return;
         }
 

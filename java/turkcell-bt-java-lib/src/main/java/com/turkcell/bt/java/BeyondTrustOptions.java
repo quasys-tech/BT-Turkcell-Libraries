@@ -12,6 +12,15 @@ public class BeyondTrustOptions {
     @JsonProperty("BEYONDTRUST_API_KEY")
     private String apiKey = "";
 
+    @JsonProperty("BEYONDTRUST_USE_APP_USER")
+    private boolean useAppUser = true;
+
+    @JsonProperty("BEYONDTRUST_CLIENT_ID")
+    private String clientId;
+
+    @JsonProperty("BEYONDTRUST_CLIENT_SECRET")
+    private String clientSecret;
+
     @JsonProperty("BEYONDTRUST_RUNAS_USER")
     private String runAsUser;
 
@@ -40,6 +49,12 @@ public class BeyondTrustOptions {
     public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+    public boolean isUseAppUser() { return useAppUser; }
+    public void setUseAppUser(boolean useAppUser) { this.useAppUser = useAppUser; }
+    public String getClientId() { return clientId; }
+    public void setClientId(String clientId) { this.clientId = clientId; }
+    public String getClientSecret() { return clientSecret; }
+    public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
     public String getRunAsUser() { return runAsUser; }
     public void setRunAsUser(String runAsUser) { this.runAsUser = runAsUser; }
     public boolean isIgnoreSslErrors() { return ignoreSslErrors; }
@@ -63,6 +78,8 @@ public class BeyondTrustOptions {
         // String Değerler (Null gelebilir, kütüphane içinde null check var)
         options.setApiUrl(System.getenv("BEYONDTRUST_API_URL"));
         options.setApiKey(System.getenv("BEYONDTRUST_API_KEY"));
+        options.setClientId(System.getenv("BEYONDTRUST_CLIENT_ID"));
+        options.setClientSecret(System.getenv("BEYONDTRUST_CLIENT_SECRET"));
         options.setRunAsUser(System.getenv("BEYONDTRUST_RUNAS_USER"));
         options.setManagedAccounts(System.getenv("BEYONDTRUST_MANAGED_ACCOUNTS"));
         options.setSecretSafePaths(System.getenv("BEYONDTRUST_SECRET_SAFE_PATHS"));
@@ -73,6 +90,10 @@ public class BeyondTrustOptions {
         options.setEnabled(enabledEnv == null || Boolean.parseBoolean(enabledEnv));
 
         options.setIgnoreSslErrors(Boolean.parseBoolean(System.getenv("BEYONDTRUST_IGNORE_SSL_ERRORS")));
+        String useAppUserEnv = System.getenv("BEYONDTRUST_USE_APP_USER");
+        if (useAppUserEnv != null && !useAppUserEnv.isBlank()) {
+            options.setUseAppUser(Boolean.parseBoolean(useAppUserEnv));
+        }
         options.setAllManagedAccountsEnabled(Boolean.parseBoolean(System.getenv("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED")));
         options.setAllSecretsEnabled(Boolean.parseBoolean(System.getenv("BEYONDTRUST_ALL_SECRETS_ENABLED")));
 
