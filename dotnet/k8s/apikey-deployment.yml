@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-dotnet-apikey-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-dotnet-apikey-demo
+  template:
+    metadata:
+      labels:
+        app: bt-dotnet-apikey-demo
+    spec:
+      containers:
+        - name: bt-dotnet-apikey-demo
+          image: ghcr.io/example/bt-dotnet-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-dotnet-apikey-config
+            - secretRef:
+                name: bt-dotnet-apikey-secret

@@ -1,14 +1,14 @@
-# 1. Aşama: Build
-FROM maven:3.8.5-openjdk-17-slim AS build
-WORKDIR /app
-COPY pom-demo.xml ./pom.xml 
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /src
+
+COPY pom.xml ./
+COPY pom-demo.xml ./
 COPY src ./src
-# ÖNEMLİ: -f parametresiyle özel pom dosyasını gösteriyoruz
-RUN mvn -f pom.xml clean package -DskipTests
 
-# 2. Aşama: Run
-FROM amazoncorretto:17-alpine
+RUN mvn -f pom-demo.xml -DskipTests package
+
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /src/target/*-shaded.jar /app/app.jar
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

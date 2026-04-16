@@ -2,43 +2,30 @@ package com.turkcell.bt.java.demo;
 
 import com.turkcell.bt.java.BeyondTrustConfigurationManager;
 
-public class POC {
+public final class POC {
+
+    private POC() {
+    }
 
     public static void main(String[] args) {
+        printMinimalIntegrationExample();
 
-        System.out.println("🚀 Uygulama Başlatılıyor...");
+        try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad()) {
+            String managedPassword = manager.getProperty("bt.acc.<SystemName>.<AccountName>");
+            String secretPassword = manager.getProperty("bt.safe.<Folder>.<Title>.password");
 
-        // ConfigMap'ten hangi key'leri arayacağımızı okuyoruz
-        String safeUserKey = System.getenv("BT_EXAMPLE_SAFE_USERNAME");
-        String safePassKey = System.getenv("BT_EXAMPLE_SAFE_PASSWORD");
-        String managedAccountKey = System.getenv("BT_EXAMPLE_ACCOUNT");
-
-        try (var manager = BeyondTrustConfigurationManager.createAndLoad()) {
-
-            System.out.println("✅ BeyondTrust Servisi Hazır. İzlenen anahtarlar:");
-            System.out.println("👉 Safe User Key: " + safeUserKey);
-            System.out.println("👉 Safe Pass Key: " + safePassKey);
-            System.out.println("👉 Managed Account: " + managedAccountKey);
-
-            while (true) {
-                // ConfigMap'ten gelen key isimlerini kullanarak manager'dan değerleri çekiyoruz
-                String exampleUser = manager.getProperty(safeUserKey, "KEY_TANIMSIZ");
-                String examplePass = manager.getProperty(safePassKey, "KEY_TANIMSIZ");
-                String exampleAcc  = manager.getProperty(managedAccountKey, "KEY_TANIMSIZ");
-
-                System.out.println("\n⏰ Zaman: " + System.currentTimeMillis());
-                System.out.println("👤 Safe Username: " + exampleUser);
-                System.out.println("🔑 Safe Password: " + examplePass);
-                System.out.println("🛡️ Account Pass : " + exampleAcc);
-                System.out.println("--------------------------------------------------");
-
-                try {
-                    Thread.sleep(5000); 
-                } catch (InterruptedException e) {
-                    System.out.println("🛑 Uygulama durduruluyor...");
-                    break;
-                }
-            }
+            System.out.println("Managed account password lookup result: " + managedPassword);
+            System.out.println("Secret safe password lookup result: " + secretPassword);
         }
+    }
+
+    public static void printMinimalIntegrationExample() {
+        System.out.println("Minimal integration example:");
+        System.out.println("""
+                BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad();
+                String managedPassword = manager.getProperty("bt.acc.<SystemName>.<AccountName>");
+                String secretPassword = manager.getProperty("bt.safe.<Folder>.<Title>.password");
+                """);
+        System.out.println();
     }
 }

@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-java-oauth-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-java-oauth-demo
+  template:
+    metadata:
+      labels:
+        app: bt-java-oauth-demo
+    spec:
+      containers:
+        - name: bt-java-oauth-demo
+          image: ghcr.io/example/bt-java-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-java-oauth-config
+            - secretRef:
+                name: bt-java-oauth-secret

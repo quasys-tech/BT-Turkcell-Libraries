@@ -3,14 +3,24 @@ package com.turkcell.bt.java;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 class SecretSafeItemDto {
+    @JsonProperty("Folder")
     private String folder;
+
+    @JsonProperty("Title")
     private String title;
+
+    @JsonProperty("Username")
     private String username;
+
+    @JsonProperty("Account")
     private String account;
+
+    @JsonProperty("Password")
     private String password;
+
+    @JsonProperty("SecretType")
     private String secretType;
 
-    // Getter ve Setter'lar
     public String getFolder() { return folder; }
     public void setFolder(String folder) { this.folder = folder; }
     public String getTitle() { return title; }

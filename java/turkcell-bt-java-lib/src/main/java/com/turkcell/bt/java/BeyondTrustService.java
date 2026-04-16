@@ -7,307 +7,599 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
-import javax.net.ssl.*;
-import java.net.*;
-import java.net.http.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.io.ByteArrayInputStream;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class BeyondTrustService implements AutoCloseable {
+
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     private final BeyondTrustOptions options;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private String bearerToken;
-    private static final Map<String, String> passwordCache = new ConcurrentHashMap<>();
 
     public BeyondTrustService(BeyondTrustOptions options) {
-        this.options = options;
-
-        // 1. JSON Case Insensitive (ID=0 sorununu çözer)
-        this.objectMapper = JsonMapper.builder()
-                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .build();
-
-        // 2. SSL & Hostname Bypass (Sertifika sorunlarını çözer)
-        System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
-        CookieManager cookieManager = new CookieManager();
-        cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
-
-        this.httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(30))
-                .cookieHandler(cookieManager)
-                .sslContext(trustAllSslContext())
-                .build();
+        this(options, createHttpClient(options));
     }
 
     public BeyondTrustService(BeyondTrustOptions options, HttpClient httpClient) {
         this.options = options;
-        this.objectMapper = JsonMapper.builder().configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true).configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).build();
         this.httpClient = httpClient;
+        this.objectMapper = JsonMapper.builder()
+                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .build();
     }
 
     public Map<String, String> fetchAllSecrets() {
-        Map<String, String> data = new HashMap<>();
         try {
-            if (options.isUseAppUser()) {
-                loginWithOAuth();
-            } else {
-                loginWithApiKey();
+            Map<String, String> snapshot = new LinkedHashMap<>();
+            authenticate();
+
+            if (options.isAllManagedAccountsEnabled() || hasValue(options.getManagedAccounts())) {
+                processManagedAccounts(snapshot);
             }
 
-            // Managed Accounts
-            if (options.isAllManagedAccountsEnabled() || (options.getManagedAccounts() != null && !options.getManagedAccounts().isBlank())) {
-                processManagedAccounts(data);
+            if (hasValue(options.getSecretSafePaths())) {
+                processSecretSafe(snapshot);
             }
-            // Secret Safe
-            if (options.getSecretSafePaths() != null && !options.getSecretSafePaths().isBlank()) {
-                processSecretSafe(data);
+
+            if (options.isAllSecretsEnabled()) {
+                System.out.println("[BeyondTrust] BEYONDTRUST_ALL_SECRETS_ENABLED is accepted for compatibility, but Secret Safe loading still uses BEYONDTRUST_SECRET_SAFE_PATHS.");
             }
+
+            return snapshot;
         } catch (Exception ex) {
-            System.err.println("❌ [BeyondTrust] fetchAllSecrets patladı:");
-            ex.printStackTrace();        }
-        return data;
+            throw new IllegalStateException("BeyondTrust secret loading failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    HttpRequest.Builder requestBuilder(String path) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(normalizeBaseUrl(options.getApiUrl()) + path))
+                .timeout(REQUEST_TIMEOUT);
+
+        if (options.isUseAppUser()) {
+            if (hasValue(bearerToken)) {
+                builder.header("Authorization", "Bearer " + bearerToken);
+            }
+            return builder;
+        }
+
+        BeyondTrustAuthParsing.ParsedApiKey parsedApiKey =
+                BeyondTrustAuthParsing.parseApiKey(options.getApiKey(), options.getRunAsUser());
+
+        if (parsedApiKey == null) {
+            throw new IllegalStateException("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.");
+        }
+
+        return builder.header("Authorization", parsedApiKey.toAuthorizationHeader());
+    }
+
+    static String parseRequestId(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return "";
+        }
+
+        String trimmed = payload.trim();
+        try {
+            JsonNode root = new ObjectMapper().readTree(trimmed);
+            if (root.isNumber() || root.isTextual()) {
+                return root.asText();
+            }
+
+            String requestId = readValueIgnoreCase(root, "RequestID");
+            return requestId == null ? "" : requestId;
+        } catch (Exception ignored) {
+            return trimmed.replace("\"", "");
+        }
+    }
+
+    static String parseCredentialValue(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return "";
+        }
+
+        String trimmed = payload.trim();
+        try {
+            JsonNode root = new ObjectMapper().readTree(trimmed);
+            if (root.isTextual()) {
+                return root.asText();
+            }
+
+            String credential = readValueIgnoreCase(root, "Credential");
+            if (credential != null) {
+                return credential;
+            }
+
+            String password = readValueIgnoreCase(root, "Password");
+            if (password != null) {
+                return password;
+            }
+        } catch (Exception ignored) {
+            return trimmed.replace("\"", "");
+        }
+
+        return trimmed.replace("\"", "");
+    }
+
+    static SSLContext createSslContext(BeyondTrustOptions options) {
+        try {
+            if (options.isIgnoreSslErrors()) {
+                return trustAllSslContext();
+            }
+
+            if (!hasValue(options.getCertificateContent())) {
+                return null;
+            }
+
+            X509TrustManager defaultTrustManager = getDefaultTrustManager();
+            X509TrustManager customTrustManager = getCustomTrustManager(options.getCertificateContent());
+            X509TrustManager compositeTrustManager = new CompositeX509TrustManager(defaultTrustManager, customTrustManager);
+
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{compositeTrustManager}, new SecureRandom());
+            return sslContext;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to configure BeyondTrust TLS context: " + ex.getMessage(), ex);
+        }
+    }
+
+    private void authenticate() throws Exception {
+        if (options.isUseAppUser()) {
+            loginWithOAuth();
+            return;
+        }
+
+        loginWithApiKey();
     }
 
     private void loginWithOAuth() throws Exception {
         bearerToken = null;
 
         String formBody = "grant_type=client_credentials"
-                + "&client_id=" + URLEncoder.encode(options.getClientId() != null ? options.getClientId() : "", StandardCharsets.UTF_8)
-                + "&client_secret=" + URLEncoder.encode(options.getClientSecret() != null ? options.getClientSecret() : "", StandardCharsets.UTF_8);
+                + "&client_id=" + URLEncoder.encode(options.getClientId() == null ? "" : options.getClientId(), StandardCharsets.UTF_8)
+                + "&client_secret=" + URLEncoder.encode(options.getClientSecret() == null ? "" : options.getClientSecret(), StandardCharsets.UTF_8);
 
-        HttpRequest tokenReq = HttpRequest.newBuilder()
-                .uri(URI.create(options.getApiUrl().replaceAll("/+$", "") + "/Auth/Connect/Token"))
-                .version(HttpClient.Version.HTTP_1_1)
+        HttpRequest tokenRequest = HttpRequest.newBuilder()
+                .uri(URI.create(normalizeBaseUrl(options.getApiUrl()) + "Auth/Connect/Token"))
+                .timeout(REQUEST_TIMEOUT)
                 .header("Authorization", "PS-Auth")
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .timeout(Duration.ofSeconds(30))
                 .POST(HttpRequest.BodyPublishers.ofString(formBody))
                 .build();
 
-        HttpResponse<String> tokenResp = httpClient.send(tokenReq, HttpResponse.BodyHandlers.ofString());
-        if (!isSuccess(tokenResp.statusCode())) {
-            throw new IllegalStateException("OAuth token request failed. Status=" + tokenResp.statusCode());
+        HttpResponse<String> tokenResponse = httpClient.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+        ensureSuccess(tokenResponse.statusCode(), "OAuth token request");
+
+        JsonNode tokenPayload = objectMapper.readTree(tokenResponse.body() == null ? "" : tokenResponse.body());
+        String accessToken = readValueIgnoreCase(tokenPayload, "access_token");
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalStateException("OAuth token response did not contain access_token.");
         }
 
-        JsonNode tokenJson = objectMapper.readTree(tokenResp.body() == null ? "" : tokenResp.body());
-        String token = readJsonValueIgnoreCase(tokenJson, "access_token");
-        if (token == null || token.isBlank()) {
-            throw new IllegalStateException("OAuth access token not found.");
-        }
-
-        bearerToken = token;
-
-        HttpResponse<Void> signResp = httpClient.send(
-                req("Auth/SignAppin")
-                        .POST(HttpRequest.BodyPublishers.ofString("{}"))
-                        .header("Content-Type", "application/json")
-                        .build(),
-                HttpResponse.BodyHandlers.discarding()
-        );
-
-        if (!isSuccess(signResp.statusCode())) {
-            throw new IllegalStateException("Auth/SignAppin failed. Status=" + signResp.statusCode());
-        }
+        bearerToken = accessToken;
+        postSignAppIn();
     }
 
-    private void loginWithApiKey() {
+    private void loginWithApiKey() throws Exception {
         bearerToken = null;
+        BeyondTrustAuthParsing.ParsedApiKey parsedApiKey =
+                BeyondTrustAuthParsing.parseApiKey(options.getApiKey(), options.getRunAsUser());
+
+        if (parsedApiKey == null) {
+            throw new IllegalStateException("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.");
+        }
+
+        postSignAppIn();
+    }
+
+    private void postSignAppIn() throws Exception {
+        HttpResponse<String> response = httpClient.send(
+                requestBuilder("Auth/SignAppin")
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        ensureSuccess(response.statusCode(), "Auth/SignAppin");
+    }
+
+    private void processManagedAccounts(Map<String, String> snapshot) throws Exception {
+        HttpResponse<String> response = httpClient.send(
+                requestBuilder("ManagedAccounts").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        ensureSuccess(response.statusCode(), "ManagedAccounts");
+
+        List<ManagedAccountDto> accounts = objectMapper.readValue(
+                response.body() == null ? "[]" : response.body(),
+                new TypeReference<List<ManagedAccountDto>>() {});
+
+        for (ManagedAccountDto account : filterAccounts(accounts)) {
+            String configKey = "bt.acc." + account.getSystemName().trim() + "." + account.getAccountName().trim();
+            snapshot.put(configKey, fetchManagedAccountPassword(account.getSystemId(), account.getAccountId()));
+        }
+    }
+
+    private String fetchManagedAccountPassword(int systemId, int accountId) throws Exception {
+        String requestId = "";
+
         try {
-            httpClient.send(
-                    req("Auth/SignAppin")
-                            .POST(HttpRequest.BodyPublishers.ofString("{}"))
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "systemId", systemId,
+                    "accountId", accountId,
+                    "durationMinutes", 5,
+                    "reason", "TurkcellAutoFetch"));
+
+            HttpResponse<String> createResponse = httpClient.send(
+                    requestBuilder("Requests")
                             .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(payload))
                             .build(),
-                    HttpResponse.BodyHandlers.discarding()
-            );
-        } catch (Exception ignored) {}
-    }
+                    HttpResponse.BodyHandlers.ofString());
 
-    private void processManagedAccounts(Map<String, String> dict) throws Exception {
-        HttpResponse<String> resp = httpClient.send(req("ManagedAccounts").GET().build(), HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) return;
+            if (isSuccess(createResponse.statusCode())) {
+                requestId = parseRequestId(createResponse.body());
+            } else if (createResponse.statusCode() == 409 || createResponse.statusCode() == 403) {
+                requestId = findExistingRequestId(systemId, accountId);
+            } else {
+                throw new IllegalStateException("Request creation failed with status " + createResponse.statusCode() + ".");
+            }
 
-        List<ManagedAccountDto> accs = objectMapper.readValue(sanitize(resp.body()), new TypeReference<List<ManagedAccountDto>>() {});
-        for (ManagedAccountDto acc : filterAccounts(accs)) {
-            String key = "bt.acc." + acc.getSystemName().trim() + "." + acc.getAccountName().trim();
-            dict.put(key, fetchPassword(acc.getSystemId(), acc.getAccountId(), "acc." + acc.getSystemName() + "." + acc.getAccountName()));
+            if (!hasValue(requestId)) {
+                throw new IllegalStateException("Request ID could not be resolved for the managed account credential flow.");
+            }
+
+            for (int attempt = 0; attempt < 5; attempt++) {
+                HttpResponse<String> credentialResponse = httpClient.send(
+                        requestBuilder("Credentials/" + URLEncoder.encode(requestId, StandardCharsets.UTF_8))
+                                .GET()
+                                .build(),
+                        HttpResponse.BodyHandlers.ofString());
+
+                if (isSuccess(credentialResponse.statusCode())) {
+                    return parseCredentialValue(credentialResponse.body());
+                }
+
+                Thread.sleep(Duration.ofSeconds(attempt + 1).toMillis());
+            }
+
+            throw new IllegalStateException("Credential retrieval failed for RequestID '" + requestId + "'.");
+        } finally {
+            if (hasValue(requestId)) {
+                tryCheckIn(requestId);
+            }
         }
     }
 
-    private String fetchPassword(int sysId, int accId, String cacheKey) {
-        String reqId = "";
+    private void tryCheckIn(String requestId) {
         try {
-            String body = String.format("{\"systemId\":%d,\"accountId\":%d,\"durationMinutes\":5,\"reason\":\"AutoFetch\"}", sysId, accId);
-            HttpResponse<String> resp = httpClient.send(req("Requests").POST(HttpRequest.BodyPublishers.ofString(body)).header("Content-Type", "application/json").build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(
+                    requestBuilder("Requests/" + URLEncoder.encode(requestId, StandardCharsets.UTF_8) + "/Checkin")
+                            .header("Content-Type", "application/json")
+                            .PUT(HttpRequest.BodyPublishers.ofString("{\"reason\":\"Done\"}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
 
-            if (resp.statusCode() == 200 || resp.statusCode() == 201) reqId = parseId(sanitize(resp.body()));
-            else if (resp.statusCode() == 409 || resp.statusCode() == 403) reqId = findExistingReqId(sysId, accId);
-
-            if (reqId.isEmpty()) return passwordCache.getOrDefault(cacheKey, "ERROR_REQ_ID_NOT_FOUND");
-
-            for (int i = 0; i < 3; i++) {
-                HttpResponse<String> credResp = httpClient.send(req("Credentials/" + reqId).GET().build(), HttpResponse.BodyHandlers.ofString());
-                if (credResp.statusCode() == 200) {
-                    String pass = cleanPassword(credResp.body());
-                    passwordCache.put(cacheKey, pass);
-                    return pass;
-                }
-                Thread.sleep(1000);
+            if (!isSuccess(response.statusCode())) {
+                System.out.println("[BeyondTrust] Check-in failed for RequestID '" + requestId + "' with status " + response.statusCode() + ".");
             }
-        } catch (Exception e) { return passwordCache.getOrDefault(cacheKey, "ERROR_EXCEPTION"); }
-        finally {
-            if (!reqId.isEmpty() && reqId.matches("\\d+")) {
-                try { httpClient.send(req("Requests/" + reqId + "/Checkin").PUT(HttpRequest.BodyPublishers.ofString("{\"reason\":\"Done\"}")).header("Content-Type", "application/json").build(), HttpResponse.BodyHandlers.discarding()); } catch (Exception ignored) {}
-            }
-        }
-        return passwordCache.getOrDefault(cacheKey, "ERROR_CRED_FAIL");
-    }
-
-    private void processSecretSafe(Map<String, String> dict) {
-        if (options.getSecretSafePaths() == null) return;
-        for (String path : options.getSecretSafePaths().split("[;,]")) {
-            try {
-                HttpResponse<String> resp = httpClient.send(req("Secrets-Safe/Secrets?Path=" + URLEncoder.encode(path.trim(), StandardCharsets.UTF_8)).GET().build(), HttpResponse.BodyHandlers.ofString());
-                if (resp.statusCode() == 200) {
-                    JsonNode root = objectMapper.readTree(sanitize(resp.body()));
-                    if (root.isArray()) {
-                        for (JsonNode item : root) {
-                            String title = item.has("Title") ? item.get("Title").asText() : (item.has("title") ? item.get("title").asText() : "Untitled");
-                            String folder = item.has("Folder") ? item.get("Folder").asText() : path.trim();
-                            String baseKey = "bt.safe." + folder.trim() + "." + title.trim();
-                            dict.put(baseKey + ".password", item.has("Password") ? item.get("Password").asText() : "");
-                            if (item.has("Username")) dict.put(baseKey + ".username", item.get("Username").asText());
-                        }
-                    }
-                }
-            } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            System.out.println("[BeyondTrust] Check-in failed for RequestID '" + requestId + "': " + ex.getMessage());
         }
     }
 
-    // --- Helpers ---
-    private String parseId(String b) { return b == null ? "" : b.replace("{", "").replace("}", "").replace("\"", "").replace("RequestID", "").replace("RequestId", "").replace(":", "").trim(); }
+    private String findExistingRequestId(int systemId, int accountId) throws Exception {
+        HttpResponse<String> response = httpClient.send(
+                requestBuilder("Requests").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
 
-    private String findExistingReqId(int sysId, int accId) {
-        try {
-            HttpResponse<String> r = httpClient.send(req("Requests").GET().build(), HttpResponse.BodyHandlers.ofString());
-            
-            // Log ekleyelim: Requests listesi çekilebildi mi?
-            if (r.statusCode() != 200) {
-                System.err.println("⚠️ [BeyondTrust] Mevcut istekler listelenemedi. Status: " + r.statusCode());
-                return "";
-            }
+        ensureSuccess(response.statusCode(), "Requests lookup");
 
-            JsonNode root = objectMapper.readTree(sanitize(r.body()));
-            if (root.isArray()) {
-                for (JsonNode n : root) {
-                    // Hem büyük hem küçük harf ihtimallerini güvenle kontrol ediyoruz
-                    int s = -1;
-                    if (n.has("SystemID")) s = n.get("SystemID").asInt();
-                    else if (n.has("systemId")) s = n.get("systemId").asInt();
-
-                    int a = -1;
-                    if (n.has("AccountID")) a = n.get("AccountID").asInt();
-                    else if (n.has("accountId")) a = n.get("accountId").asInt();
-
-                    if (s == sysId && a == accId) {
-                        String foundId = n.has("RequestID") ? n.get("RequestID").asText() : 
-                                       (n.has("RequestId") ? n.get("RequestId").asText() : "");
-                        System.out.println("ℹ️ [BeyondTrust] Mevcut bir RequestID bulundu: " + foundId);
-                        return foundId;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // "ignored" yerine artık buradayız!
-            System.err.println("❌ [BeyondTrust] findExistingReqId içinde hata oluştu:");
-            e.printStackTrace(); 
+        JsonNode root = objectMapper.readTree(response.body() == null ? "[]" : response.body());
+        if (!root.isArray()) {
+            return "";
         }
+
+        for (JsonNode item : root) {
+            int currentSystemId = readIntegerIgnoreCase(item, "SystemID");
+            int currentAccountId = readIntegerIgnoreCase(item, "AccountID");
+
+            if (currentSystemId == systemId && currentAccountId == accountId) {
+                String requestId = readValueIgnoreCase(item, "RequestID");
+                return requestId == null ? "" : requestId;
+            }
+        }
+
         return "";
     }
-    private HttpRequest.Builder req(String path) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(options.getApiUrl().replaceAll("/+$", "") + "/" + path))
+
+    private void processSecretSafe(Map<String, String> snapshot) throws Exception {
+        for (String path : splitValues(options.getSecretSafePaths())) {
+            HttpResponse<String> response = httpClient.send(
+                    requestBuilder("Secrets-Safe/Secrets?Path=" + URLEncoder.encode(path, StandardCharsets.UTF_8))
+                            .GET()
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+
+            ensureSuccess(response.statusCode(), "Secrets-Safe for path '" + path + "'");
+
+            List<SecretSafeItemDto> items = objectMapper.readValue(
+                    response.body() == null ? "[]" : response.body(),
+                    new TypeReference<List<SecretSafeItemDto>>() {});
+
+            for (SecretSafeItemDto item : items) {
+                String folder = hasValue(item.getFolder()) ? item.getFolder().trim() : path;
+                String title = hasValue(item.getTitle()) ? item.getTitle().trim() : "Untitled";
+                String baseKey = "bt.safe." + folder + "." + title;
+
+                snapshot.put(baseKey + ".password", item.getPassword() == null ? "" : item.getPassword());
+
+                String username = hasValue(item.getUsername())
+                        ? item.getUsername().trim()
+                        : (hasValue(item.getAccount()) ? item.getAccount().trim() : null);
+
+                if (hasValue(username)) {
+                    snapshot.put(baseKey + ".username", username);
+                }
+            }
+        }
+    }
+
+    private List<ManagedAccountDto> filterAccounts(List<ManagedAccountDto> allAccounts) {
+        if (options.isAllManagedAccountsEnabled()) {
+            return allAccounts;
+        }
+
+        List<String> requestedAccounts = splitValues(options.getManagedAccounts(), ';');
+        if (requestedAccounts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<String> requestedAccountSet = new HashSet<>(requestedAccounts);
+        List<ManagedAccountDto> filteredAccounts = new ArrayList<>();
+
+        for (ManagedAccountDto account : allAccounts) {
+            String key = account.getSystemName().trim() + "." + account.getAccountName().trim();
+            if (requestedAccountSet.contains(key)) {
+                filteredAccounts.add(account);
+            }
+        }
+
+        Set<String> returnedAccountSet = new HashSet<>();
+        for (ManagedAccountDto account : filteredAccounts) {
+            returnedAccountSet.add(account.getSystemName().trim() + "." + account.getAccountName().trim());
+        }
+
+        for (String requestedAccount : requestedAccountSet) {
+            if (!returnedAccountSet.contains(requestedAccount)) {
+                System.out.println("[BeyondTrust] Managed account was requested but not returned by the API: " + requestedAccount);
+            }
+        }
+
+        return filteredAccounts;
+    }
+
+    private static HttpClient createHttpClient(BeyondTrustOptions options) {
+        CookieManager cookieManager = new CookieManager();
+        cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
+
+        HttpClient.Builder builder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
-                .timeout(Duration.ofSeconds(30));
+                .connectTimeout(REQUEST_TIMEOUT)
+                .cookieHandler(cookieManager);
 
-        if (options.isUseAppUser()) {
-            if (bearerToken != null && !bearerToken.isBlank()) {
-                builder.header("Authorization", "Bearer " + bearerToken);
-            }
-            return builder;
+        SSLContext sslContext = createSslContext(options);
+        if (sslContext != null) {
+            builder.sslContext(sslContext);
         }
 
-        String auth = buildApiKeyAuthHeader();
-        if (!auth.isBlank()) {
-            builder.header("Authorization", auth);
+        return builder.build();
+    }
+
+    private static X509TrustManager getDefaultTrustManager() throws Exception {
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init((KeyStore) null);
+        return findX509TrustManager(trustManagerFactory.getTrustManagers());
+    }
+
+    private static X509TrustManager getCustomTrustManager(String certificateContent) throws Exception {
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+        String normalizedPem = certificateContent.replace("\\n", "\n");
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(null, null);
+
+        int certificateIndex = 0;
+        for (var certificate : certificateFactory.generateCertificates(
+                new ByteArrayInputStream(normalizedPem.getBytes(StandardCharsets.UTF_8)))) {
+            keyStore.setCertificateEntry("beyondtrust-cert-" + certificateIndex++, certificate);
         }
-        return builder;
-    }
 
-    private String buildApiKeyAuthHeader() {
-        String key = (options.getApiKey() != null ? options.getApiKey() : "").replace("PS-Auth", "").trim();
-        String k = "", r = options.getRunAsUser() != null ? options.getRunAsUser() : "";
-        for (String p : key.split(";")) {
-            if (p.trim().toLowerCase().startsWith("key=")) k = p.trim().substring(4);
-            else if (p.trim().toLowerCase().startsWith("runas=")) r = p.trim().substring(6);
-            else if (k.isEmpty() && !p.trim().isEmpty()) k = p.trim();
+        if (certificateIndex == 0) {
+            throw new IllegalStateException("BEYONDTRUST_CERTIFICATE_CONTENT does not contain a valid certificate.");
         }
-        return "PS-Auth key=" + k + ";" + (!r.isEmpty() ? " runas=" + r + ";" : "");
+
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(keyStore);
+        return findX509TrustManager(trustManagerFactory.getTrustManagers());
     }
 
-    private List<ManagedAccountDto> filterAccounts(List<ManagedAccountDto> all) {
-        if (options.isAllManagedAccountsEnabled()) return all;
-        if (options.getManagedAccounts() == null) return new ArrayList<>();
-        Set<String> t = new HashSet<>();
-        for (String s : options.getManagedAccounts().split(";")) { int i = s.lastIndexOf('.'); if (i > 0) t.add(s.substring(0, i).trim().toLowerCase() + "." + s.substring(i + 1).trim().toLowerCase()); }
-        List<ManagedAccountDto> f = new ArrayList<>();
-        for (ManagedAccountDto a : all) if (t.contains(a.getSystemName().trim().toLowerCase() + "." + a.getAccountName().trim().toLowerCase())) f.add(a);
-        return f;
-    }
-
-    private String sanitize(String s) { return s == null ? "" : s.trim().replaceAll("^\"|\"$", "").replace("\\\"", "\""); }
-
-    private String readJsonValueIgnoreCase(JsonNode node, String key) {
-        if (node == null || !node.isObject()) return null;
-        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-        while (fields.hasNext()) {
-            Map.Entry<String, JsonNode> field = fields.next();
-            if (field.getKey().equalsIgnoreCase(key)) {
-                return field.getValue().asText();
+    private static X509TrustManager findX509TrustManager(TrustManager[] trustManagers) {
+        for (TrustManager trustManager : trustManagers) {
+            if (trustManager instanceof X509TrustManager x509TrustManager) {
+                return x509TrustManager;
             }
         }
-        return null;
+
+        throw new IllegalStateException("X509TrustManager could not be created.");
     }
 
-    private boolean isSuccess(int statusCode) {
+    private static SSLContext trustAllSslContext() throws Exception {
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, new TrustManager[]{new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) {
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) {
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }}, new SecureRandom());
+
+        return sslContext;
+    }
+
+    private static boolean hasValue(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static List<String> splitValues(String value, char... separators) {
+        if (!hasValue(value)) {
+            return Collections.emptyList();
+        }
+
+        List<Character> actualSeparators = new ArrayList<>();
+        if (separators.length == 0) {
+            actualSeparators.add(',');
+            actualSeparators.add(';');
+        } else {
+            for (char separator : separators) {
+                actualSeparators.add(separator);
+            }
+        }
+
+        String normalized = value;
+        for (char separator : actualSeparators) {
+            normalized = normalized.replace(separator, ',');
+        }
+
+        List<String> values = new ArrayList<>();
+        for (String item : normalized.split(",")) {
+            String trimmed = item.trim();
+            if (!trimmed.isEmpty()) {
+                values.add(trimmed);
+            }
+        }
+
+        return values;
+    }
+
+    private static String normalizeBaseUrl(String apiUrl) {
+        if (!hasValue(apiUrl)) {
+            throw new IllegalStateException("BEYONDTRUST_API_URL must be configured before creating the service.");
+        }
+
+        return apiUrl.replaceAll("/+$", "") + "/";
+    }
+
+    private static void ensureSuccess(int statusCode, String operationName) {
+        if (!isSuccess(statusCode)) {
+            throw new IllegalStateException(operationName + " failed with status " + statusCode + ".");
+        }
+    }
+
+    private static boolean isSuccess(int statusCode) {
         return statusCode >= 200 && statusCode < 300;
     }
 
-    private String cleanPassword(String p) {
-        p = sanitize(p);
-        try { if (p.startsWith("{")) { JsonNode n = objectMapper.readTree(p); return n.has("Credential") ? n.get("Credential").asText() : (n.has("Password") ? n.get("Password").asText() : p); } } catch (Exception e) {}
-        return p;
+    private static String readValueIgnoreCase(JsonNode node, String propertyName) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+
+        var fields = node.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            if (entry.getKey().equalsIgnoreCase(propertyName)) {
+                return entry.getValue().asText();
+            }
+        }
+
+        return null;
     }
 
-    private SSLContext trustAllSslContext() {
+    private static int readIntegerIgnoreCase(JsonNode node, String propertyName) {
+        String value = readValueIgnoreCase(node, propertyName);
+        if (value == null || value.isBlank()) {
+            return -1;
+        }
+
         try {
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() { return null; }
-                public void checkClientTrusted(X509Certificate[] c, String a) {}
-                public void checkServerTrusted(X509Certificate[] c, String a) {}
-            }}, new SecureRandom());
-            return ctx;
-        } catch (Exception e) { throw new RuntimeException(e); }
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
-    @Override public void close() {}
+    @Override
+    public void close() {
+    }
+
+    private static final class CompositeX509TrustManager implements X509TrustManager {
+        private final X509TrustManager defaultTrustManager;
+        private final X509TrustManager customTrustManager;
+
+        private CompositeX509TrustManager(X509TrustManager defaultTrustManager, X509TrustManager customTrustManager) {
+            this.defaultTrustManager = defaultTrustManager;
+            this.customTrustManager = customTrustManager;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+            try {
+                defaultTrustManager.checkClientTrusted(chain, authType);
+            } catch (java.security.cert.CertificateException ignored) {
+                customTrustManager.checkClientTrusted(chain, authType);
+            }
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+            try {
+                defaultTrustManager.checkServerTrusted(chain, authType);
+            } catch (java.security.cert.CertificateException ignored) {
+                customTrustManager.checkServerTrusted(chain, authType);
+            }
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            X509Certificate[] defaultIssuers = defaultTrustManager.getAcceptedIssuers();
+            X509Certificate[] customIssuers = customTrustManager.getAcceptedIssuers();
+            X509Certificate[] acceptedIssuers = new X509Certificate[defaultIssuers.length + customIssuers.length];
+            System.arraycopy(defaultIssuers, 0, acceptedIssuers, 0, defaultIssuers.length);
+            System.arraycopy(customIssuers, 0, acceptedIssuers, defaultIssuers.length, customIssuers.length);
+            return acceptedIssuers;
+        }
+    }
 }

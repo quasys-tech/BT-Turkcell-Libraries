@@ -1,0 +1,23 @@
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+
+# Java
+**/target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Logs / coverage
+*.log
+coverage/
+coverage-*/
+jacoco.exec

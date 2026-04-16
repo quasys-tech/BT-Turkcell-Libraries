@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+export BEYONDTRUST_ENABLED=true
+export BEYONDTRUST_API_URL="https://pam.example.com/BeyondTrust/api/public/v3"
+export BEYONDTRUST_USE_APP_USER=false
+export BEYONDTRUST_API_KEY="PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;"
+export BEYONDTRUST_RUNAS_USER="<RUNAS_USER>"
+export BEYONDTRUST_IGNORE_SSL_ERRORS=false
+export BEYONDTRUST_REFRESH_INTERVAL=300
+export BEYONDTRUST_MANAGED_ACCOUNTS="LinuxProd.root;WindowsProd.administrator"
+export BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED=false
+export BEYONDTRUST_SECRET_SAFE_PATHS="Team/Db,Team/Api"
+export BEYONDTRUST_ALL_SECRETS_ENABLED=false
+export BT_EXAMPLE_ACCOUNT="bt.acc.LinuxProd.root"
+export BT_EXAMPLE_SAFE_PASSWORD="bt.safe.Team/Db.AppDb.password"
+export BT_EXAMPLE_SAFE_USERNAME="bt.safe.Team/Db.AppDb.username"
+
+echo "Environment variables loaded."
+echo "Run: mvn -f ./pom-demo.xml -DskipTests package"
+echo "Then: java -jar ./target/turkcell-bt-java-demo-shaded.jar"

@@ -5,68 +5,92 @@ namespace Microsoft.Extensions.Configuration;
 
 public static class BeyondTrustExtensions
 {
-    /// <summary>
-    /// Java'daki createAndLoad() mantığına eşdeğerdir. 
-    /// Ortam değişkenlerini (ConfigMap) otomatik tarar ve kütüphaneyi hazır hale getirir.
-    /// </summary>
     public static IConfigurationBuilder AddBeyondTrustSecrets(this IConfigurationBuilder builder)
     {
-        // 1. ADIM: Mevcut ortam değişkenlerini geçici olarak derle
-        // Bu sayede BEYONDTRUST_ ile başlayan değişkenlere erişebileceğiz
-        var tempConfig = new ConfigurationBuilder()
-            .AddEnvironmentVariables()
-            .Build();
+        var existingConfiguration = builder.Build();
+        var options = BindOptions(existingConfiguration);
+        var validation = BeyondTrustConfigurationValidation.Validate(existingConfiguration, options);
 
-        // 2. ADIM: Models.cs içindeki BeyondTrustOptions sınıfına otomatik map'le
-        // Bu işlem Java'daki "fromEnv()" metodunun yaptığı işi yapar.
-        var options = new BeyondTrustOptions();
-        tempConfig.Bind(options);
-
-        // 3. ADIM: Aktivasyon ve Validasyon Kontrolü
-        if (options.Enabled)
+        if (!options.Enabled)
         {
-            bool hasValidUrl = !string.IsNullOrWhiteSpace(options.ApiUrl);
-            
-            // Senaryo 1: OAuth (App User) Kullanımı
-            bool isOAuthReady = options.UseAppUser 
-                                && !string.IsNullOrWhiteSpace(options.ClientId) 
-                                && !string.IsNullOrWhiteSpace(options.ClientSecret);
-
-            // Senaryo 2: Klasik API Key Kullanımı (UseAppUser false ise buna bakar)
-            bool isApiKeyReady = !options.UseAppUser 
-                                 && !string.IsNullOrWhiteSpace(options.ApiKey);
-
-            // URL geçerli mi VE (OAuth hazır mı VEYA ApiKey hazır mı?)
-            if (hasValidUrl && (isOAuthReady || isApiKeyReady))
-            {
-                // Her şey hazır! Provider'ı sisteme dahil et.
-                builder.Add(new BeyondTrustConfigurationSource(options));
-
-                string authMode = options.UseAppUser ? "OAuth2 (App User)" : "Legacy API Key";
-                Console.WriteLine($"🚀 [BeyondTrust] Zero-Config aktif. Auth Modu: {authMode}");
-                Console.WriteLine("ℹ️  İlk veriler çekiliyor...");
-            }
-            else
-            {
-                Console.WriteLine("⚠️ [BeyondTrust] Kütüphane aktif (Enabled=true) fakat konfigürasyon eksik.");
-                if (!hasValidUrl) Console.WriteLine("   -> Eksik: BEYONDTRUST_API_URL");
-                
-                if (options.UseAppUser)
-                {
-                    if (string.IsNullOrWhiteSpace(options.ClientId)) Console.WriteLine("   -> Eksik: BEYONDTRUST_CLIENT_ID (AppUser modu açık)");
-                    if (string.IsNullOrWhiteSpace(options.ClientSecret)) Console.WriteLine("   -> Eksik: BEYONDTRUST_CLIENT_SECRET (AppUser modu açık)");
-                }
-                else if (string.IsNullOrWhiteSpace(options.ApiKey))
-                {
-                    Console.WriteLine("   -> Eksik: BEYONDTRUST_API_KEY");
-                }
-            }
+            Console.WriteLine("[BeyondTrust] Configuration provider is disabled because BEYONDTRUST_ENABLED=false.");
+            return builder;
         }
-        else
+
+        if (!validation.IsValid)
         {
-            Console.WriteLine("ℹ️ [BeyondTrust] Kütüphane devre dışı (Enabled=false).");
+            Console.WriteLine("[BeyondTrust] Configuration provider was not added because required settings are missing.");
+            foreach (var missingSetting in validation.MissingSettings)
+            {
+                Console.WriteLine($"[BeyondTrust] Missing setting: {missingSetting}");
+            }
+
+            return builder;
+        }
+
+        builder.Add(new BeyondTrustConfigurationSource(options));
+
+        var authMode = options.UseAppUser ? "OAuth / App User" : "Classic API";
+        Console.WriteLine($"[BeyondTrust] Configuration provider added. Auth mode: {authMode}. Refresh interval: {options.RefreshIntervalSeconds}s.");
+
+        if (options.AllSecretsEnabled)
+        {
+            Console.WriteLine("[BeyondTrust] BEYONDTRUST_ALL_SECRETS_ENABLED is accepted for compatibility, but this version still loads Secret Safe entries by BEYONDTRUST_SECRET_SAFE_PATHS.");
         }
 
         return builder;
     }
+
+    internal static BeyondTrustOptions BindOptions(IConfiguration configuration)
+    {
+        var options = new BeyondTrustOptions();
+        configuration.Bind(options);
+
+        if (options.RefreshIntervalSeconds <= 0 &&
+            int.TryParse(configuration["BT_REFRESH_TIME"], out var legacyRefreshInterval))
+        {
+            options.RefreshIntervalSeconds = legacyRefreshInterval;
+        }
+
+        return options;
+    }
 }
+
+internal static class BeyondTrustConfigurationValidation
+{
+    public static BeyondTrustValidationResult Validate(IConfiguration configuration, BeyondTrustOptions options)
+    {
+        var missingSettings = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(configuration["BEYONDTRUST_USE_APP_USER"]))
+        {
+            missingSettings.Add("BEYONDTRUST_USE_APP_USER");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.ApiUrl))
+        {
+            missingSettings.Add("BEYONDTRUST_API_URL");
+        }
+
+        if (options.UseAppUser)
+        {
+            if (string.IsNullOrWhiteSpace(options.ClientId))
+            {
+                missingSettings.Add("BEYONDTRUST_CLIENT_ID");
+            }
+
+            if (string.IsNullOrWhiteSpace(options.ClientSecret))
+            {
+                missingSettings.Add("BEYONDTRUST_CLIENT_SECRET");
+            }
+        }
+        else if (!BeyondTrustAuthParsing.TryParseApiKey(options.ApiKey, options.RunAsUser, out _))
+        {
+            missingSettings.Add("BEYONDTRUST_API_KEY");
+        }
+
+        return new BeyondTrustValidationResult(missingSettings.Count == 0, missingSettings);
+    }
+}
+
+internal sealed record BeyondTrustValidationResult(bool IsValid, IReadOnlyList<string> MissingSettings);

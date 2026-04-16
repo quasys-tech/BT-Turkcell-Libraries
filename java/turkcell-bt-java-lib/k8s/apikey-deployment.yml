@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-java-apikey-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-java-apikey-demo
+  template:
+    metadata:
+      labels:
+        app: bt-java-apikey-demo
+    spec:
+      containers:
+        - name: bt-java-apikey-demo
+          image: ghcr.io/example/bt-java-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-java-apikey-config
+            - secretRef:
+                name: bt-java-apikey-secret

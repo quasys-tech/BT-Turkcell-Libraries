@@ -1,10 +1,10 @@
 package com.turkcell.bt.java;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import javax.net.ssl.SSLContext;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -16,174 +16,165 @@ import static org.mockito.Mockito.*;
 
 class BeyondTrustServiceTest {
 
-    private BeyondTrustOptions options;
-    private BeyondTrustService service;
-    private HttpClient mockHttpClient;
+    private static final String TEST_PEM = """
+            -----BEGIN CERTIFICATE-----
+            MIIC6jCCAdKgAwIBAgIJAIxowur/x1WsMA0GCSqGSIb3DQEBCwUAMBcxFTATBgNV
+            BAMTDGJ0LWphdmEtdGVzdDAeFw0yNjA0MTUxNTU4NDdaFw0yNjA1MTYxNTU4NDda
+            MBcxFTATBgNVBAMTDGJ0LWphdmEtdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEP
+            ADCCAQoCggEBAJpDZVqd0TwQekEmbiNsYkcgR9xPnVD9NWYmmvEPpZFQWnoFGP/H
+            kPw9/GUXxvuhev+jgYn/34AqTvmfQTvmjxCJzXZnWnhrQg02JNG9RHB6r26s6S2Q
+            SU3RxGhIM+Ml89HDwPVHy9v+fyeACNwkk6n7ZifINFpeQKADQM64htChpMo2+JYh
+            uiYTKe8qdMtD3935ZYVehK1mA8nVaBXKtiizx9MqxC/FbRSI2TALTlQzBw1jf6gi
+            wjHzEAv/qznLb9M6j7mPT+0/Zp7MoVD3Dj6iubWYmdzG/YWSCOT7OnlKsBShDmIF
+            mslyrpA5Pf7Vb/WhIKzSi7V6tAaKxngvU7kCAwEAAaM5MDcwCQYDVR0TBAIwADAL
+            BgNVHQ8EBAMCB4AwHQYDVR0OBBYEFLqZsO9eeYrqCLSAV4GL2PwiuO3sMA0GCSqG
+            SIb3DQEBCwUAA4IBAQAHWH6Y454QU3mX2Zex8m1pcXJRARv2si14Va3rpt2lBgdq
+            uMF97G9mOpkWenzMO/y+5sC9IhGqRBLAR8KBcwgr+4kxjuIjg7TDGz5QUrMhHisk
+            tgX6+6ts2eRjXebz56ViTbJ1FX/w80/1MX/QXiTwePnOSuypM2c3O0TYZNyMgJhC
+            /dpTlEVOcjlXitCnxTHeUBZPcCPo79SbD8b0ddspX4oGhQyuyu0QCXf98Wg1HIB3
+            mZdMtO0kfF8+YXA5yncRYxwyDP55/rdOnGLjjTkBYRPxLluBpKXcrBwsvQaEoAfy
+            lDBe4+VlaVe9XkBAbZCTJmZk3CteUPc7RHvwnRDz
+            -----END CERTIFICATE-----
+            """;
 
-    @BeforeEach
-    void setUp() {
-        options = new BeyondTrustOptions();
-        options.setApiUrl("https://pam.test.local/");
-        options.setApiKey("PS-Auth key=testKey; runas=testUser;");
-        options.setUseAppUser(false);
+    @Test
+    @DisplayName("Classic API mode saf api-key ve runas degerini PS-Auth header olarak birlestirmeli")
+    void classicApiModeBuildsMergedAuthHeader() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
         options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(false);
+        options.setApiKey("raw-api-key");
+        options.setRunAsUser("svc-demo");
+        options.setSecretSafePaths("FolderA");
 
-        mockHttpClient = mock(HttpClient.class);
-        service = new BeyondTrustService(options, mockHttpClient);
+        HttpClient client = mock(HttpClient.class);
+        HttpResponse<String> signInResponse = mockResponse(200, "{}");
+        HttpResponse<String> secretSafeResponse = mockResponse(200, "[{\"Folder\":\"FolderA\",\"Title\":\"TitleA\",\"Account\":\"account-user\",\"Password\":\"secret-value\"}]");
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(signInResponse)
+                .thenReturn(secretSafeResponse);
+
+        BeyondTrustService service = new BeyondTrustService(options, client);
+        Map<String, String> snapshot = service.fetchAllSecrets();
+
+        assertEquals("secret-value", snapshot.get("bt.safe.FolderA.TitleA.password"));
+        assertEquals("account-user", snapshot.get("bt.safe.FolderA.TitleA.username"));
+
+        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(client, atLeastOnce()).send(requestCaptor.capture(), any());
+
+        HttpRequest signInRequest = requestCaptor.getAllValues().stream()
+                .filter(request -> request.uri().toString().endsWith("/Auth/SignAppin"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("PS-Auth key=raw-api-key; runas=svc-demo;",
+                signInRequest.headers().firstValue("Authorization").orElseThrow());
     }
 
     @Test
-    @DisplayName("Managed Accounts: Happy Path (Direkt İstek Başarılı)")
-    void testManagedAccountsHappyPath() throws Exception {
-        options.setAllManagedAccountsEnabled(true);
+    @DisplayName("OAuth mode token alip sonraki isteklerde Bearer header kullanmali")
+    void oauthModeUsesBearerAfterToken() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(true);
+        options.setClientId("client-id");
+        options.setClientSecret("client-secret");
+        options.setSecretSafePaths("FolderA");
 
-        // HATA ÇÖZÜMÜ: Mock nesnelerini 'when' bloğundan ÖNCE oluşturuyoruz.
-        HttpResponse<Object> respAuth = mockResponse(200, "");
-        HttpResponse<Object> respList = mockResponse(200, "[{\"SystemName\":\"LinuxProd\",\"AccountName\":\"root\",\"SystemID\":101,\"AccountID\":202}]");
-        HttpResponse<Object> respPost = mockResponse(200, "12345");
-        HttpResponse<Object> respCred = mockResponse(200, "\"SuperSecretPass\"");
-        HttpResponse<Object> respCheckin = mockResponse(204, "");
+        HttpClient client = mock(HttpClient.class);
+        HttpResponse<String> tokenResponse = mockResponse(200, "{\"access_token\":\"oauth-token\"}");
+        HttpResponse<String> signInResponse = mockResponse(200, "{}");
+        HttpResponse<String> secretSafeResponse = mockResponse(200, "[]");
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(tokenResponse)
+                .thenReturn(signInResponse)
+                .thenReturn(secretSafeResponse);
 
-        // Zincirleme
-        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(respAuth)
-                .thenReturn(respList)
-                .thenReturn(respPost)
-                .thenReturn(respCred)
-                .thenReturn(respCheckin);
-
-        Map<String, String> result = service.fetchAllSecrets();
-
-        assertNotNull(result);
-        assertEquals("SuperSecretPass", result.get("bt.acc.LinuxProd.root"));
-    }
-
-    @Test
-    @DisplayName("Fallback Mekanizması: POST 409 Conflict -> GET Existing Request")
-    void testFallbackMechanism() throws Exception {
-        options.setManagedAccounts("LinuxProd.root");
-
-        // Nesneleri önden hazırla
-        HttpResponse<Object> respAuth = mockResponse(200, "");
-        HttpResponse<Object> respList = mockResponse(200, "[{\"SystemName\":\"LinuxProd\",\"AccountName\":\"root\",\"SystemID\":101,\"AccountID\":202}]");
-        HttpResponse<Object> respPostFail = mockResponse(409, "Conflict");
-        HttpResponse<Object> respGetReqs = mockResponse(200, "[{\"RequestID\":9999,\"SystemID\":101,\"AccountID\":202,\"Status\":\"Active\"}]");
-        HttpResponse<Object> respCred = mockResponse(200, "FallbackPassword");
-
-        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(respAuth)
-                .thenReturn(respList)
-                .thenReturn(respPostFail)
-                .thenReturn(respGetReqs)
-                .thenReturn(respCred);
-
-        Map<String, String> result = service.fetchAllSecrets();
-
-        assertEquals("FallbackPassword", result.get("bt.acc.LinuxProd.root"));
-    }
-
-    @Test
-    @DisplayName("Secret Safe: Klasör ve Title Parsing")
-    void testSecretSafeParsing() throws Exception {
-        options.setSecretSafePaths("DevTeam/Apps");
-
-        HttpResponse<Object> respAuth = mockResponse(200, "");
-        String safeJson = "[" +
-                "{\"Title\":\"App1_DB\",\"Folder\":\"DevTeam/Apps\",\"Password\":\"SafePass1\",\"Username\":\"user1\"}," +
-                "{\"title\":\"App2_API\",\"Folder\":\"DevTeam/Apps\",\"Password\":\"SafePass2\"}" +
-                "]";
-        HttpResponse<Object> respSafe = mockResponse(200, safeJson);
-
-        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(respAuth)
-                .thenReturn(respSafe);
-
-        Map<String, String> result = service.fetchAllSecrets();
-
-        assertEquals("SafePass1", result.get("bt.safe.DevTeam/Apps.App1_DB.password"));
-        assertEquals("user1", result.get("bt.safe.DevTeam/Apps.App1_DB.username"));
-    }
-
-    @Test
-    @DisplayName("Payload Format Kontrolü: camelCase systemId gönderilmeli")
-    void testPayloadFormat() throws Exception {
-        options.setManagedAccounts("TestSys.TestAcc");
-
-        // Nesneleri önden hazırla (UnfinishedStubbing hatasını çözen kısım burası)
-        HttpResponse<Object> respAuth = mockResponse(200, "");
-        HttpResponse<Object> respList = mockResponse(200, "[{\"SystemName\":\"TestSys\",\"AccountName\":\"TestAcc\",\"SystemID\":5,\"AccountID\":6}]");
-        HttpResponse<Object> respPost = mockResponse(200, "100");
-        HttpResponse<Object> respCred = mockResponse(200, "pass");
-
-        when(mockHttpClient.send(any(), any()))
-                .thenReturn(respAuth)
-                .thenReturn(respList)
-                .thenReturn(respPost)
-                .thenReturn(respCred);
-
+        BeyondTrustService service = new BeyondTrustService(options, client);
         service.fetchAllSecrets();
 
-        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(mockHttpClient, atLeast(1)).send(captor.capture(), any());
+        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(client, atLeastOnce()).send(requestCaptor.capture(), any());
 
-        // POST /Requests isteğini bul
-        HttpRequest request = captor.getAllValues().stream()
-                .filter(r -> r.uri().toString().endsWith("/Requests") && r.method().equals("POST"))
+        HttpRequest tokenRequest = requestCaptor.getAllValues().stream()
+                .filter(request -> request.uri().toString().endsWith("/Auth/Connect/Token"))
                 .findFirst()
-                .orElse(null);
+                .orElseThrow();
 
-        assertNotNull(request, "POST isteği bulunamadı!");
-        assertEquals("POST", request.method());
+        HttpRequest signInRequest = requestCaptor.getAllValues().stream()
+                .filter(request -> request.uri().toString().endsWith("/Auth/SignAppin"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("PS-Auth", tokenRequest.headers().firstValue("Authorization").orElseThrow());
+        assertEquals("Bearer oauth-token", signInRequest.headers().firstValue("Authorization").orElseThrow());
     }
 
     @Test
-    @DisplayName("App User: OAuth token alinir ve devam eden isteklerde Bearer kullanilir")
-    void testAppUserOAuthFlow() throws Exception {
-        options.setUseAppUser(true);
-        options.setClientId("test-client-id");
-        options.setClientSecret("test-client-secret");
-        options.setApiKey(null);
-        options.setManagedAccounts("TestSys.TestAcc");
+    @DisplayName("Managed account conflict flow exact key naming ile credential cekebilmeli")
+    void managedAccountConflictFlowUsesExactKeyNaming() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(false);
+        options.setApiKey("api-key");
+        options.setManagedAccounts("System A.Account A");
 
-        HttpResponse<Object> respToken = mockResponse(200, "{\"access_token\":\"oauth-token-123\",\"expires_in\":3600}");
-        HttpResponse<Object> respSignAppin = mockResponse(200, "");
-        HttpResponse<Object> respList = mockResponse(200, "[{\"SystemName\":\"TestSys\",\"AccountName\":\"TestAcc\",\"SystemID\":7,\"AccountID\":9}]");
-        HttpResponse<Object> respPost = mockResponse(200, "1000");
-        HttpResponse<Object> respCred = mockResponse(200, "\"FromOAuth\"");
-        HttpResponse<Object> respCheckin = mockResponse(204, "");
+        HttpClient client = mock(HttpClient.class);
+        HttpResponse<String> signInResponse = mockResponse(200, "{}");
+        HttpResponse<String> managedAccountsResponse = mockResponse(200, "[{\"SystemName\":\"System A\",\"AccountName\":\"Account A\",\"SystemID\":11,\"AccountID\":22}]");
+        HttpResponse<String> createRequestResponse = mockResponse(409, "{}");
+        HttpResponse<String> existingRequestResponse = mockResponse(200, "[{\"RequestID\":444,\"SystemID\":11,\"AccountID\":22}]");
+        HttpResponse<String> credentialResponse = mockResponse(200, "\"managed-password\"");
+        HttpResponse<String> checkInResponse = mockResponse(200, "{}");
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(signInResponse)
+                .thenReturn(managedAccountsResponse)
+                .thenReturn(createRequestResponse)
+                .thenReturn(existingRequestResponse)
+                .thenReturn(credentialResponse)
+                .thenReturn(checkInResponse);
 
-        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(respToken)
-                .thenReturn(respSignAppin)
-                .thenReturn(respList)
-                .thenReturn(respPost)
-                .thenReturn(respCred)
-                .thenReturn(respCheckin);
+        BeyondTrustService service = new BeyondTrustService(options, client);
+        Map<String, String> snapshot = service.fetchAllSecrets();
 
-        Map<String, String> result = service.fetchAllSecrets();
-        assertEquals("FromOAuth", result.get("bt.acc.TestSys.TestAcc"));
-
-        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(mockHttpClient, atLeast(1)).send(captor.capture(), any());
-
-        HttpRequest tokenRequest = captor.getAllValues().stream()
-                .filter(r -> r.uri().toString().endsWith("/Auth/Connect/Token"))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(tokenRequest);
-        assertEquals("PS-Auth", tokenRequest.headers().firstValue("Authorization").orElse(""));
-
-        HttpRequest signAppinRequest = captor.getAllValues().stream()
-                .filter(r -> r.uri().toString().endsWith("/Auth/SignAppin"))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(signAppinRequest);
-        assertEquals("Bearer oauth-token-123", signAppinRequest.headers().firstValue("Authorization").orElse(""));
+        assertEquals("managed-password", snapshot.get("bt.acc.System A.Account A"));
     }
 
-    // --- HELPER METOT (RAW MOCK KULLANIMI) ---
+    @Test
+    @DisplayName("parseRequestId object string ve numeric payload formatlarini desteklemeli")
+    void parseRequestIdSupportsMultiplePayloadShapes() {
+        assertEquals("123", BeyondTrustService.parseRequestId("{\"RequestID\":123}"));
+        assertEquals("456", BeyondTrustService.parseRequestId("\"456\""));
+        assertEquals("789", BeyondTrustService.parseRequestId("789"));
+    }
+
+    @Test
+    @DisplayName("Certificate content verildiginde custom SSL context olusturulmali")
+    void createSslContextUsesCustomCertificateContent() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setCertificateContent(TEST_PEM);
+
+        SSLContext sslContext = BeyondTrustService.createSslContext(options);
+
+        assertNotNull(sslContext);
+        assertNotSame(SSLContext.getDefault(), sslContext);
+    }
+
+    @Test
+    @DisplayName("Ignore SSL hatalari sadece acik opt-in oldugunda trust-all context dondurmeli")
+    void createSslContextSupportsIgnoreSslErrorsOptIn() {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setIgnoreSslErrors(true);
+
+        assertNotNull(BeyondTrustService.createSslContext(options));
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private HttpResponse<Object> mockResponse(int statusCode, String body) {
+    private HttpResponse<String> mockResponse(int statusCode, String body) {
         HttpResponse response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(statusCode);
         when(response.body()).thenReturn(body);

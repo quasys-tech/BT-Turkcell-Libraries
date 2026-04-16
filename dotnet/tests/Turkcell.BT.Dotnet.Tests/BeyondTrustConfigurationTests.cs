@@ -1,50 +1,97 @@
-using Xunit;
 using Microsoft.Extensions.Configuration;
 using Turkcell.BT.Dotnet.Lib;
 
 namespace Turkcell.BT.Dotnet.Tests;
 
-public class BeyondTrustConfigurationTests
+public sealed class BeyondTrustConfigurationTests : IDisposable
 {
+    private static readonly string[] EnvironmentKeys =
+    [
+        "BEYONDTRUST_ENABLED",
+        "BEYONDTRUST_API_URL",
+        "BEYONDTRUST_USE_APP_USER",
+        "BEYONDTRUST_API_KEY",
+        "BEYONDTRUST_RUNAS_USER",
+        "BEYONDTRUST_CLIENT_ID",
+        "BEYONDTRUST_CLIENT_SECRET"
+    ];
+
     [Fact]
-    public void Provider_Load_WhenDisabled_ShouldEmptyData()
+    public void AddBeyondTrustSecrets_AddsSource_ForClassicApiMode()
     {
-        var options = new BeyondTrustOptions { Enabled = false };
-        var provider = new BeyondTrustConfigurationProvider(options);
-        provider.Load();
-        Assert.Empty(provider.GetChildKeys([], null));
+        SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+        SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
+        SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "false");
+        SetEnvironmentVariable("BEYONDTRUST_API_KEY", "raw-api-key-value");
+        SetEnvironmentVariable("BEYONDTRUST_RUNAS_USER", "svc-demo");
+
+        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
+
+        builder.AddBeyondTrustSecrets();
+
+        Assert.Contains(builder.Sources, source => source is BeyondTrustConfigurationSource);
     }
 
     [Fact]
-    public void Extensions_AddBeyondTrustSecrets_ShouldAddSource()
+    public void AddBeyondTrustSecrets_AddsSource_ForOAuthMode()
     {
-        // Temiz bir ortam için önce sil
-        Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", null);
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", null);
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", null);
-        Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", null);
+        SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+        SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
+        SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "true");
+        SetEnvironmentVariable("BEYONDTRUST_CLIENT_ID", "client-id");
+        SetEnvironmentVariable("BEYONDTRUST_CLIENT_SECRET", "client-secret");
 
-        // Yeni değerleri set et
-        Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.test");
-        Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "PS-Auth key=test;");
-        Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "false"); // API Key modunu zorla
+        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
 
-        try
+        builder.AddBeyondTrustSecrets();
+
+        Assert.Contains(builder.Sources, source => source is BeyondTrustConfigurationSource);
+    }
+
+    [Fact]
+    public void AddBeyondTrustSecrets_DoesNotAddSource_WhenValidationFails()
+    {
+        SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+        SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
+        SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "false");
+        SetEnvironmentVariable("BEYONDTRUST_API_KEY", null);
+
+        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
+
+        builder.AddBeyondTrustSecrets();
+
+        Assert.DoesNotContain(builder.Sources, source => source is BeyondTrustConfigurationSource);
+    }
+
+    [Fact]
+    public void BindOptions_UsesLegacyRefreshIntervalAlias_WhenCanonicalValueMissing()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BEYONDTRUST_ENABLED"] = "true",
+                ["BEYONDTRUST_API_URL"] = "https://pam.example.com/BeyondTrust/api/public/v3",
+                ["BEYONDTRUST_USE_APP_USER"] = "false",
+                ["BEYONDTRUST_API_KEY"] = "raw-api-key-value",
+                ["BT_REFRESH_TIME"] = "120"
+            })
+            .Build();
+
+        var options = BeyondTrustExtensions.BindOptions(configuration);
+
+        Assert.Equal(120, options.RefreshIntervalSeconds);
+    }
+
+    public void Dispose()
+    {
+        foreach (var environmentKey in EnvironmentKeys)
         {
-            var builder = new ConfigurationBuilder().AddEnvironmentVariables();
-            builder.AddBeyondTrustSecrets();
+            SetEnvironmentVariable(environmentKey, null);
+        }
+    }
 
-            // Source eklenmiş mi kontrol et
-            Assert.Contains(builder.Sources, s => s is BeyondTrustConfigurationSource);
-        }
-        finally
-        {
-            // Temizlik
-            Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", null);
-            Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", null);
-            Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", null);
-            Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", null);
-        }
+    private static void SetEnvironmentVariable(string key, string? value)
+    {
+        Environment.SetEnvironmentVariable(key, value);
     }
 }

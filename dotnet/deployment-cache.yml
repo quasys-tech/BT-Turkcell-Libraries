@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-dotnet-cache-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-dotnet-cache-demo
+  template:
+    metadata:
+      labels:
+        app: bt-dotnet-cache-demo
+    spec:
+      containers:
+        - name: bt-dotnet-cache-demo
+          image: ghcr.io/example/bt-dotnet-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-dotnet-cache-demo-config
+            - secretRef:
+                name: bt-dotnet-cache-demo-secret
