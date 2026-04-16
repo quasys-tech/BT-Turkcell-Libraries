@@ -2,7 +2,7 @@
 
 ## Execution Time
 
-- Verification completed at `2026-04-16T21:34:35.4359571+03:00`
+- Verification completed at `2026-04-16T22:07:19.0739767+03:00`
 
 ## Toolchain
 
@@ -23,10 +23,9 @@ Raw logs:
 | `dotnet --info` | `0` | Passed | Toolchain available. |
 | `mvn -v` | `0` | Passed | Toolchain available. |
 | `dotnet restore dotnet/TurkcellBTDotnetSolution.sln` | `0` | Passed | Solution restore completed. |
-| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `1` | Failed on first attempt | `CS8956` in `dotnet/samples/Turkcell.BT.Dotnet.Demo/Program.cs`: file-scoped namespace was placed after top-level statements. |
-| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed on rerun | Re-ran after switching the demo helper namespace to block form. |
-| `dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed | `25/25` tests passed. |
-| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Passed | `18/18` tests passed. |
+| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed | Release build completed. |
+| `dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed | `32/32` tests passed. |
+| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Passed | `28/28` tests passed. |
 | `mvn -f java/turkcell-bt-java-lib/pom-demo.xml package` | `0` | Passed | Demo shaded jar packaged successfully. |
 
 Raw logs:
@@ -37,12 +36,21 @@ Raw logs:
 - [verification/maven-test.txt](verification/maven-test.txt)
 - [verification/maven-package.txt](verification/maven-package.txt)
 
+## Parity Verified In This Round
+
+- `BEYONDTRUST_REFRESH_INTERVAL` and `BT_REFRESH_TIME` now follow the same precedence, default, and error semantics in `.NET` and `Java`.
+- Invalid canonical refresh values now fail in both libraries instead of silently falling back.
+- Invalid legacy refresh values now fall back to the default only when the canonical setting is absent in both libraries.
+- `BEYONDTRUST_USE_APP_USER` validation remains explicit in both libraries when `BEYONDTRUST_ENABLED=true`.
+- Shared boolean parameters now fail fast on invalid values in both libraries:
+  `BEYONDTRUST_ENABLED`, `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_IGNORE_SSL_ERRORS`, `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED`, `BEYONDTRUST_ALL_SECRETS_ENABLED`.
+
 ## Failure Summary
 
-- The first `.NET build` attempt failed with `CS8956` because the new demo helper used a file-scoped namespace after top-level statements.
-- After changing that helper to a block namespace in the same file, the required `.NET build` and `.NET test` commands passed.
+- No command failures remained in the final verification run.
 
 ## Final Status
 
 - `.NET build/test passed`
 - `Java test/package passed`
+- Shared parameter parity checks passed for refresh precedence, auth-mode validation, and shared boolean parsing.

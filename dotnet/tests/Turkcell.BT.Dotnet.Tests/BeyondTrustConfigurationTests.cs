@@ -14,6 +14,9 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
         "BEYONDTRUST_RUNAS_USER",
         "BEYONDTRUST_CLIENT_ID",
         "BEYONDTRUST_CLIENT_SECRET",
+        "BEYONDTRUST_IGNORE_SSL_ERRORS",
+        "BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED",
+        "BEYONDTRUST_ALL_SECRETS_ENABLED",
         "BEYONDTRUST_REFRESH_INTERVAL",
         "BT_REFRESH_TIME"
     ];
@@ -71,6 +74,22 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
         SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
         SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
         SetEnvironmentVariable("BEYONDTRUST_API_KEY", "raw-api-key-value");
+
+        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
+
+        builder.AddBeyondTrustSecrets();
+
+        Assert.DoesNotContain(builder.Sources, source => source is BeyondTrustConfigurationSource);
+    }
+
+    [Fact]
+    public void AddBeyondTrustSecrets_DoesNotAddSource_WhenOAuthFieldsAreMissing()
+    {
+        SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+        SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
+        SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "true");
+        SetEnvironmentVariable("BEYONDTRUST_CLIENT_ID", null);
+        SetEnvironmentVariable("BEYONDTRUST_CLIENT_SECRET", null);
 
         var builder = new ConfigurationBuilder().AddEnvironmentVariables();
 
@@ -143,6 +162,19 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
     }
 
     [Fact]
+    public void BindOptions_Throws_WhenCanonicalRefreshIntervalIsInvalid_WithoutLegacyAlias()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BEYONDTRUST_REFRESH_INTERVAL"] = "not-an-integer"
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => BeyondTrustExtensions.BindOptions(configuration));
+
+        Assert.Contains("BEYONDTRUST_REFRESH_INTERVAL", exception.Message);
+    }
+
+    [Fact]
     public void BindOptions_Throws_WhenCanonicalRefreshIntervalIsInvalid()
     {
         var configuration = BuildConfiguration(new Dictionary<string, string?>
@@ -154,6 +186,24 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
         var exception = Assert.Throws<InvalidOperationException>(() => BeyondTrustExtensions.BindOptions(configuration));
 
         Assert.Contains("BEYONDTRUST_REFRESH_INTERVAL", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("BEYONDTRUST_USE_APP_USER", "not-a-boolean")]
+    [InlineData("BEYONDTRUST_IGNORE_SSL_ERRORS", "not-a-boolean")]
+    [InlineData("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", "not-a-boolean")]
+    [InlineData("BEYONDTRUST_ALL_SECRETS_ENABLED", "not-a-boolean")]
+    [InlineData("BEYONDTRUST_ENABLED", "not-a-boolean")]
+    public void BindOptions_Throws_WhenSharedBooleanValueIsInvalid(string key, string value)
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            [key] = value
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => BeyondTrustExtensions.BindOptions(configuration));
+
+        Assert.Contains(key, exception.Message);
     }
 
     public void Dispose()

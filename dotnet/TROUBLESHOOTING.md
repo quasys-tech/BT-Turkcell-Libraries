@@ -4,6 +4,7 @@
 
 - Check `BEYONDTRUST_USE_APP_USER`.
 - When `BEYONDTRUST_ENABLED=true`, `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false`.
+- Invalid boolean values for `BEYONDTRUST_ENABLED`, `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_IGNORE_SSL_ERRORS`, `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED`, or `BEYONDTRUST_ALL_SECRETS_ENABLED` are configuration errors.
 - For OAuth, verify `BEYONDTRUST_CLIENT_ID` and `BEYONDTRUST_CLIENT_SECRET`.
 - For Classic API, verify `BEYONDTRUST_API_KEY` and optional `BEYONDTRUST_RUNAS_USER`.
 
@@ -40,6 +41,7 @@
 - `BEYONDTRUST_REFRESH_INTERVAL` is the canonical setting and wins when both refresh variables are present.
 - `BT_REFRESH_TIME` is legacy-only and is used only when the canonical setting is absent and valid.
 - If `BEYONDTRUST_REFRESH_INTERVAL` is present but invalid, fix that value instead of expecting a silent fallback to `BT_REFRESH_TIME`.
+- If `BT_REFRESH_TIME` is invalid and `BEYONDTRUST_REFRESH_INTERVAL` is absent, the default refresh interval is used.
 - On refresh failure the library keeps the last successful snapshot by design.
 
 ## Demo Sample Key Not Printed

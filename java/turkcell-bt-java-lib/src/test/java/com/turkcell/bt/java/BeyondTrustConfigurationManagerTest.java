@@ -71,6 +71,56 @@ class BeyondTrustConfigurationManagerTest {
     }
 
     @Test
+    @DisplayName("fromEnv canonical refresh degeri varsa legacy aliasi ezmeli")
+    void fromEnvUsesCanonicalRefreshIntervalWhenBothValuesExist() {
+        System.setProperty("BEYONDTRUST_REFRESH_INTERVAL", "120");
+        System.setProperty("BT_REFRESH_TIME", "45");
+
+        BeyondTrustOptions options = BeyondTrustOptions.fromEnv();
+
+        assertEquals(120, options.getRefreshIntervalSeconds());
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid legacy refresh degeri varken canonical yoksa default kullanmali")
+    void fromEnvUsesDefaultRefreshIntervalWhenLegacyAliasIsInvalid() {
+        System.setProperty("BT_REFRESH_TIME", "invalid");
+
+        BeyondTrustOptions options = BeyondTrustOptions.fromEnv();
+
+        assertEquals(1800, options.getRefreshIntervalSeconds());
+    }
+
+    @Test
+    @DisplayName("fromEnv refresh parametreleri yoksa default kullanmali")
+    void fromEnvUsesDefaultRefreshIntervalWhenRefreshParametersAreMissing() {
+        BeyondTrustOptions options = BeyondTrustOptions.fromEnv();
+
+        assertEquals(1800, options.getRefreshIntervalSeconds());
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid canonical refresh degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenCanonicalRefreshIntervalIsInvalid() {
+        System.setProperty("BEYONDTRUST_REFRESH_INTERVAL", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_REFRESH_INTERVAL"));
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid canonical refresh degeri legacy alias olsa bile fallback yapmamali")
+    void fromEnvDoesNotFallbackToLegacyWhenCanonicalRefreshIntervalIsInvalid() {
+        System.setProperty("BEYONDTRUST_REFRESH_INTERVAL", "invalid");
+        System.setProperty("BT_REFRESH_TIME", "45");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_REFRESH_INTERVAL"));
+    }
+
+    @Test
     @DisplayName("fromEnv explicit false verildiginde classic mode secimini korumali")
     void fromEnvSupportsExplicitClassicMode() {
         System.setProperty("BEYONDTRUST_USE_APP_USER", "false");
@@ -121,6 +171,56 @@ class BeyondTrustConfigurationManagerTest {
         try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, Map::of)) {
             assertTrue(invokeValidateRequiredSettings(manager).contains("BEYONDTRUST_API_KEY"));
         }
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid BEYONDTRUST_USE_APP_USER degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenUseAppUserBooleanIsInvalid() {
+        System.setProperty("BEYONDTRUST_USE_APP_USER", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_USE_APP_USER"));
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid BEYONDTRUST_IGNORE_SSL_ERRORS degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenIgnoreSslErrorsBooleanIsInvalid() {
+        System.setProperty("BEYONDTRUST_IGNORE_SSL_ERRORS", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_IGNORE_SSL_ERRORS"));
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenAllManagedAccountsBooleanIsInvalid() {
+        System.setProperty("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED"));
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid BEYONDTRUST_ALL_SECRETS_ENABLED degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenAllSecretsBooleanIsInvalid() {
+        System.setProperty("BEYONDTRUST_ALL_SECRETS_ENABLED", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_ALL_SECRETS_ENABLED"));
+    }
+
+    @Test
+    @DisplayName("fromEnv invalid BEYONDTRUST_ENABLED degeri verildiginde error vermeli")
+    void fromEnvThrowsWhenEnabledBooleanIsInvalid() {
+        System.setProperty("BEYONDTRUST_ENABLED", "invalid");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, BeyondTrustOptions::fromEnv);
+
+        assertTrue(exception.getMessage().contains("BEYONDTRUST_ENABLED"));
     }
 
     @Test

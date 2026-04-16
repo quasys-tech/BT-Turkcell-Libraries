@@ -3,6 +3,8 @@ package com.turkcell.bt.java;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class BeyondTrustOptions {
+    private static final int DEFAULT_REFRESH_INTERVAL_SECONDS = 1800;
+
     @JsonProperty("BEYONDTRUST_ENABLED")
     private boolean enabled = true;
 
@@ -32,7 +34,7 @@ public class BeyondTrustOptions {
     private String certificateContent;
 
     @JsonProperty("BEYONDTRUST_REFRESH_INTERVAL")
-    private int refreshIntervalSeconds = 1800;
+    private int refreshIntervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
 
     @JsonProperty("BEYONDTRUST_MANAGED_ACCOUNTS")
     private String managedAccounts;
@@ -115,7 +117,12 @@ public class BeyondTrustOptions {
             return defaultValue;
         }
 
-        return Boolean.parseBoolean(value);
+        String normalized = value.trim();
+        if ("true".equalsIgnoreCase(normalized) || "false".equalsIgnoreCase(normalized)) {
+            return Boolean.parseBoolean(normalized);
+        }
+
+        throw new IllegalArgumentException("Invalid " + key + " value. Expected 'true' or 'false'.");
     }
 
     private static Boolean readExplicitBoolean(String key) {
@@ -124,8 +131,9 @@ public class BeyondTrustOptions {
             return null;
         }
 
-        if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
-            return Boolean.parseBoolean(value);
+        String normalized = value.trim();
+        if ("true".equalsIgnoreCase(normalized) || "false".equalsIgnoreCase(normalized)) {
+            return Boolean.parseBoolean(normalized);
         }
 
         throw new IllegalArgumentException("Invalid " + key + " value. Expected 'true' or 'false'.");
@@ -133,18 +141,22 @@ public class BeyondTrustOptions {
 
     private static int readRefreshInterval() {
         String canonicalValue = readString("BEYONDTRUST_REFRESH_INTERVAL");
-        if (canonicalValue != null) {
+        if (canonicalValue != null && !canonicalValue.isBlank()) {
             Integer parsed = tryParseInteger(canonicalValue);
-            return parsed != null ? parsed : 1800;
+            if (parsed != null) {
+                return parsed;
+            }
+
+            throw new IllegalArgumentException("Invalid BEYONDTRUST_REFRESH_INTERVAL value. Expected an integer number of seconds.");
         }
 
         String legacyValue = readString("BT_REFRESH_TIME");
-        if (legacyValue != null) {
+        if (legacyValue != null && !legacyValue.isBlank()) {
             Integer parsed = tryParseInteger(legacyValue);
-            return parsed != null ? parsed : 1800;
+            return parsed != null ? parsed : DEFAULT_REFRESH_INTERVAL_SECONDS;
         }
 
-        return 1800;
+        return DEFAULT_REFRESH_INTERVAL_SECONDS;
     }
 
     private static Integer tryParseInteger(String rawValue) {
