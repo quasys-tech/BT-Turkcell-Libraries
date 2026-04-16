@@ -2,13 +2,13 @@
 
 ## Library Ekleme
 
-Package reference ornegi:
+Package reference örneği:
 
 ```bash
 dotnet add package Turkcell.BT.Dotnet.Lib
 ```
 
-Bu repo icinde `ProjectReference` ornegi:
+Bu repo içinde `ProjectReference` örneği:
 
 ```xml
 <ProjectReference Include="..\src\Turkcell.BT.Dotnet.Lib\Turkcell.BT.Dotnet.Lib.csproj" />
@@ -29,14 +29,14 @@ var safePassword = configuration["bt.safe.Team/Db.AppDb.password"];
 
 ## Local Windows
 
-`classic API auth` ornegi:
+`classic API auth` örneği:
 
 ```powershell
 . .\examples\env\windows-apikey.ps1.sample
 dotnet run --project .\samples\Turkcell.BT.Dotnet.Demo
 ```
 
-`OAuth` ornegi:
+`OAuth` örneği:
 
 ```powershell
 . .\examples\env\windows-oauth.ps1.sample
@@ -45,14 +45,14 @@ dotnet run --project .\samples\Turkcell.BT.Dotnet.Demo
 
 ## Local Linux
 
-`classic API auth` ornegi:
+`classic API auth` örneği:
 
 ```bash
 source ./examples/env/linux-apikey.sh.sample
 dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
 ```
 
-`OAuth` ornegi:
+`OAuth` örneği:
 
 ```bash
 source ./examples/env/linux-oauth.sh.sample
@@ -61,7 +61,7 @@ dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
 
 ## Kubernetes
 
-Onerilen manifest setleri:
+Önerilen manifest setleri:
 
 - `classic API auth`: [k8s/apikey-configmap.yml](k8s/apikey-configmap.yml), [k8s/apikey-secret.yml](k8s/apikey-secret.yml), [k8s/apikey-deployment.yml](k8s/apikey-deployment.yml)
 - `OAuth`: [k8s/oauth-configmap.yml](k8s/oauth-configmap.yml), [k8s/oauth-secret.yml](k8s/oauth-secret.yml), [k8s/oauth-deployment.yml](k8s/oauth-deployment.yml)
@@ -72,23 +72,23 @@ Demo app:
 
 - sadece environment variable okur
 - iki auth mode'u da destekler
-- `BEYONDTRUST_USE_APP_USER` degerinin explicit verilmesini bekler
-- yuklenen tum `bt.*` key'lerini yazdirir
-- secilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
+- `BEYONDTRUST_USE_APP_USER` değerinin explicit verilmesini bekler
+- yüklenen tüm `bt.*` key'lerini yazdırır
+- seçilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
 
-Calistirma komutu:
+Çalıştırma komutu:
 
 ```bash
 dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
 ```
 
-Demo-only helper parameter ornekleri:
+Demo-only helper parameter örnekleri:
 
 - `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
 - `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
 - `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- Bir helper parameter set edilmemisse demo app ilgili example output icin skip mesaji yazar.
-- Bir helper parameter yuklenmis bir key'e isaret etmiyorsa demo app `Demo example key not found: <key>` mesaji yazar.
+- Bir helper parameter set edilmemişse demo app ilgili example output için skip mesajı yazar.
+- Bir helper parameter yüklenmiş bir key'e işaret etmiyorsa demo app `Demo example key not found: <key>` mesajı yazar.
 
 ## OAuth Senaryosu
 
@@ -108,11 +108,11 @@ Gerekli parameter'lar:
 - `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
 - `BEYONDTRUST_USE_APP_USER=false`
 - `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` degerini `runas` bilgisini ayri vermek istiyorsaniz kullanin
+- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` değerini `runas` bilgisini ayrı vermek istiyorsanız kullanın
 
 ## Refresh Interval Notu
 
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
-- `BT_REFRESH_TIME` sadece backward compatibility icin desteklenen legacy alias'tir.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
+- `BT_REFRESH_TIME` sadece backward compatibility için desteklenen legacy alias'tır.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.

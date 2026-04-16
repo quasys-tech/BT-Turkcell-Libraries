@@ -2,7 +2,7 @@
 
 ## Library Ekleme
 
-Maven dependency ornegi:
+Maven dependency örneği:
 
 ```xml
 <dependency>
@@ -23,7 +23,7 @@ try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.c
 
 ## Local Windows
 
-`classic API auth` ornegi:
+`classic API auth` örneği:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-apikey.ps1.sample
@@ -31,7 +31,7 @@ mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
 java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-`OAuth` ornegi:
+`OAuth` örneği:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-oauth.ps1.sample
@@ -41,7 +41,7 @@ java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 
 ## Local Linux
 
-`classic API auth` ornegi:
+`classic API auth` örneği:
 
 ```bash
 source ./turkcell-bt-java-lib/examples/env/linux-apikey.sh.sample
@@ -49,7 +49,7 @@ mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
 java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 ```
 
-`OAuth` ornegi:
+`OAuth` örneği:
 
 ```bash
 source ./turkcell-bt-java-lib/examples/env/linux-oauth.sh.sample
@@ -59,7 +59,7 @@ java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 
 ## Kubernetes
 
-Onerilen manifest setleri:
+Önerilen manifest setleri:
 
 - `classic API auth`: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
 - `OAuth`: [turkcell-bt-java-lib/k8s/oauth-configmap.yml](turkcell-bt-java-lib/k8s/oauth-configmap.yml), [turkcell-bt-java-lib/k8s/oauth-secret.yml](turkcell-bt-java-lib/k8s/oauth-secret.yml), [turkcell-bt-java-lib/k8s/oauth-deployment.yml](turkcell-bt-java-lib/k8s/oauth-deployment.yml)
@@ -68,26 +68,26 @@ Onerilen manifest setleri:
 
 Ana demo app:
 
-- once `system property`, sonra `environment variable` okur
+- önce `system property`, sonra `environment variable` okur
 - iki auth mode'u da destekler
-- `BEYONDTRUST_USE_APP_USER` degerinin explicit verilmesini bekler
-- yuklenen tum `bt.*` key'lerini yazdirir
-- secilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
+- `BEYONDTRUST_USE_APP_USER` değerinin explicit verilmesini bekler
+- yüklenen tüm `bt.*` key'lerini yazdırır
+- seçilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
 
-Calistirma komutu:
+Çalıştırma komutu:
 
 ```bash
 mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
 java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 ```
 
-Demo-only helper parameter ornekleri:
+Demo-only helper parameter örnekleri:
 
 - `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
 - `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
 - `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- Bir helper parameter set edilmemisse demo app ilgili example output icin skip mesaji yazar.
-- Bir helper parameter yuklenmis bir key'e isaret etmiyorsa demo app `Demo example key not found: <key>` mesaji yazar.
+- Bir helper parameter set edilmemişse demo app ilgili example output için skip mesajı yazar.
+- Bir helper parameter yüklenmiş bir key'e işaret etmiyorsa demo app `Demo example key not found: <key>` mesajı yazar.
 
 ## OAuth Senaryosu
 
@@ -107,11 +107,11 @@ Gerekli parameter'lar:
 - `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
 - `BEYONDTRUST_USE_APP_USER=false`
 - `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` degerini `runas` bilgisini ayri vermek istiyorsaniz kullanin
+- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` değerini `runas` bilgisini ayrı vermek istiyorsanız kullanın
 
 ## Refresh Interval Notu
 
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
-- `BT_REFRESH_TIME` sadece backward compatibility icin desteklenen legacy alias'tir.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
+- `BT_REFRESH_TIME` sadece backward compatibility için desteklenen legacy alias'tır.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.

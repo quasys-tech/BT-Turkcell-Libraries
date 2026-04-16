@@ -2,9 +2,9 @@
 
 ## Overview
 
-- Bu file, `BT-Turkcell-Libraries` repo'su icin `2026-04-16T22:27:19.4509046+03:00` tarihinde tekrar uretilen verification run'inin ozetini verir.
-- Bu turda code behavior degistirilmedi. Sadece documentation dili standardize edildi ve `verification/` altindaki raw output file'lari yeniden olusturuldu.
-- Bu ozet icindeki tum log referanslari repo root altindaki gercek `verification/*.txt` file'lariyla birebir uyumludur.
+- Bu file, `BT-Turkcell-Libraries` repo'su için `2026-04-16T23:09:08.0946664+03:00` tarihinde tamamlanan final verification run'inin özetini verir.
+- Bu turda code behavior değiştirilmedi. Sadece documentation dili profesyonel teslim seviyesine getirildi ve `verification/` altındaki log file'ları yeniden üretildi.
+- Verification log'ları gerçek command output'larından üretildi, ardından teslim paketi için sanitize edildi.
 
 ## Toolchain
 
@@ -32,28 +32,36 @@ mvn -f java/turkcell-bt-java-lib/pom-demo.xml package
 
 ## Results
 
-| Command | Exit Code | Result | Kisa sonuc | Raw log |
+| Command | Exit Code | Result | Kısa sonuç | Raw log |
 | --- | --- | --- | --- | --- |
-| `dotnet --info` | `0` | Pass | Toolchain bilgisi alindi. | [verification/dotnet-info.txt](verification/dotnet-info.txt) |
-| `mvn -v` | `0` | Pass | Maven ve Java version bilgisi alindi. | [verification/maven-version.txt](verification/maven-version.txt) |
-| `dotnet restore dotnet/TurkcellBTDotnetSolution.sln` | `0` | Pass | Solution restore tamamlandi. | [verification/dotnet-restore.txt](verification/dotnet-restore.txt) |
-| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Pass | Release build `0 Warning`, `0 Error` ile tamamlandi. | [verification/dotnet-build.txt](verification/dotnet-build.txt) |
+| `dotnet --info` | `0` | Pass | Toolchain bilgisi alındı. | [verification/dotnet-info.txt](verification/dotnet-info.txt) |
+| `mvn -v` | `0` | Pass | Maven ve Java version bilgisi alındı. | [verification/maven-version.txt](verification/maven-version.txt) |
+| `dotnet restore dotnet/TurkcellBTDotnetSolution.sln` | `0` | Pass | Solution restore tamamlandı. | [verification/dotnet-restore.txt](verification/dotnet-restore.txt) |
+| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Pass | Release build `0 Warning`, `0 Error` ile tamamlandı. | [verification/dotnet-build.txt](verification/dotnet-build.txt) |
 | `dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Pass | `.NET` test run `32/32` passed. | [verification/dotnet-test.txt](verification/dotnet-test.txt) |
-| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Pass | `Java` test run `28/28` passed ve `BUILD SUCCESS` uretildi. | [verification/maven-test.txt](verification/maven-test.txt) |
-| `mvn -f java/turkcell-bt-java-lib/pom-demo.xml package` | `0` | Pass | Demo package build `BUILD SUCCESS` ile tamamlandi. | [verification/maven-package.txt](verification/maven-package.txt) |
+| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Pass | `Java` test run `28/28` passed ve `BUILD SUCCESS` üretildi. | [verification/maven-test.txt](verification/maven-test.txt) |
+| `mvn -f java/turkcell-bt-java-lib/pom-demo.xml package` | `0` | Pass | Demo `package` run `BUILD SUCCESS` ile tamamlandı. | [verification/maven-package.txt](verification/maven-package.txt) |
 
 ## Verification Scope
 
-- `verification/` klasoru bu turda yeniden olusturuldu.
-- `.NET` tarafinda `restore`, `build` ve `test` komutlari tekrar kosuldu.
-- `Java` tarafinda `test` ve demo `package` komutlari tekrar kosuldu.
-- `BUILD_VERIFICATION.md` icindeki log referanslari mevcut file isimleriyle birebir eslestirildi.
-- Root `README.md`, `.NET` ve `Java` docs seti Turkce anlatim + English teknik terim standardina getirildi.
+- `verification/` klasörü final teslim için yeniden üretildi.
+- Tüm verification log'ları UTF-8 plain text olarak yazıldı.
+- `.NET` tarafında `restore`, `build` ve `test` komutları tekrar koşturuldu.
+- `Java` tarafında `test` ve demo `package` komutları tekrar koşturuldu.
+- Root `README.md`, `.NET` docs seti ve `Java` docs seti Türkçe anlatım + English teknik terim standardına getirildi.
+- `BUILD_VERIFICATION.md` içindeki tüm log referansları mevcut `verification/*.txt` file'larıyla birebir eşleştirildi.
 
 ## Notes
 
-- `verification/maven-test.txt` icinde gorulen `simulated refresh failure` satiri test coverage'in bilincli bir parcasidir. Command exit code `0` oldugu ve Maven sonucu `BUILD SUCCESS` oldugu icin verification sonucu degismez.
-- `verification/maven-test.txt` ve `verification/maven-package.txt` icinde warning satirlari vardir. Bu warning'ler package/test sonucunu fail etmemistir.
+- Verification log'ları gerçek command output'larından üretilmiştir.
+- Teslim paketi için local path, local username ve machine-specific absolute path izleri sanitize edilmiştir.
+- Sanitization sırasında şu placeholder'lar kullanılmıştır:
+  - `<local-user>`
+  - `<workspace>`
+  - `<local-path>`
+- Bu sanitization, command result, exit code, tool version, error meaning veya build/test/package sonucunu değiştirmez.
+- `verification/maven-test.txt` içinde görülen `simulated refresh failure` satırı test coverage'in bilinçli bir parçasıdır. Command exit code `0` olduğu ve Maven sonucu `BUILD SUCCESS` olduğu için verification sonucu değişmez.
+- `verification/maven-test.txt` ve `verification/maven-package.txt` içindeki warning satırları final sonucu fail etmemiştir.
 - Final durum:
   - `.NET build/test passed`
   - `Java test/package passed`

@@ -1,17 +1,17 @@
 # BT-Turkcell-Libraries
 
-Bu repo, BeyondTrust entegrasyonu icin hazirlanan `.NET` ve `Java` library orneklerini ve ilgili docs setini icerir.
+Bu repo, BeyondTrust entegrasyonu için hazırlanan `.NET` ve `Java` library örneklerini, demo app'leri ve ilgili docs setini içerir.
 
-## Repo Icerigi
+## Repo İçeriği
 
 - `.NET` library ve ana docs: [dotnet/README.md](dotnet/README.md)
 - `Java` library ve ana docs: [java/turkcell-bt-java-lib/README.md](java/turkcell-bt-java-lib/README.md)
-- Build/test/package verification ozeti: [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md)
-- Raw verification output'lari: `verification/`
+- Build/test/package verification özeti: [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md)
+- Raw verification output'ları: `verification/`
 
 ## Key Format Contract
 
-Her iki library de ayni key formatlarini uretir:
+Her iki library de aynı key formatlarını üretir:
 
 - `bt.acc.{SystemName}.{AccountName}`
 - `bt.safe.{Folder}.{Title}.password`
@@ -22,17 +22,17 @@ Her iki library de ayni key formatlarini uretir:
 - `OAuth / App User / Client Credentials`
 - `classic API auth`
 
-## Docs Haritasi
+## Docs Haritası
 
-- `.NET` kullanim adimlari icin [dotnet/USAGE.md](dotnet/USAGE.md)
-- `.NET` parametre ozeti icin [dotnet/PARAMETERS.md](dotnet/PARAMETERS.md)
-- `.NET` troubleshooting notlari icin [dotnet/TROUBLESHOOTING.md](dotnet/TROUBLESHOOTING.md)
-- `Java` kullanim adimlari icin [java/USAGE.md](java/USAGE.md)
-- `Java` parametre ozeti icin [java/turkcell-bt-java-lib/PARAMETERS.md](java/turkcell-bt-java-lib/PARAMETERS.md)
-- `Java` troubleshooting notlari icin [java/turkcell-bt-java-lib/TROUBLESHOOTING.md](java/turkcell-bt-java-lib/TROUBLESHOOTING.md)
+- `.NET` kullanım adımları için [dotnet/USAGE.md](dotnet/USAGE.md)
+- `.NET` parameter özeti için [dotnet/PARAMETERS.md](dotnet/PARAMETERS.md)
+- `.NET` troubleshooting notları için [dotnet/TROUBLESHOOTING.md](dotnet/TROUBLESHOOTING.md)
+- `Java` kullanım adımları için [java/USAGE.md](java/USAGE.md)
+- `Java` parameter özeti için [java/turkcell-bt-java-lib/PARAMETERS.md](java/turkcell-bt-java-lib/PARAMETERS.md)
+- `Java` troubleshooting notları için [java/turkcell-bt-java-lib/TROUBLESHOOTING.md](java/turkcell-bt-java-lib/TROUBLESHOOTING.md)
 
-## Verification Nasil Okunur
+## Verification Nasıl Okunur
 
-- Ozet durum icin once [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md) dosyasina bakin.
-- Her komutun raw output'unu gormek icin `verification/*.txt` file'larini acin.
-- `BUILD_VERIFICATION.md` icindeki tum log referanslari `verification/` altindaki gercek file'larla birebir eslesir.
+- Özet durum için önce [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md) dosyasına bakın.
+- Her komutun raw output'unu görmek için `verification/*.txt` file'larını açın.
+- `BUILD_VERIFICATION.md` içindeki tüm log referansları `verification/` altındaki gerçek file'larla birebir eşleşir.
