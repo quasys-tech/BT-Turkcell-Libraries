@@ -24,10 +24,15 @@ try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.c
 
 Notes:
 
+- `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false` whenever `BEYONDTRUST_ENABLED=true`.
 - `BEYONDTRUST_REFRESH_INTERVAL` is the canonical refresh parameter.
-- `BT_REFRESH_TIME` is still accepted as a backward-compatible alias.
+- `BT_REFRESH_TIME` is accepted only as a backward-compatible alias when `BEYONDTRUST_REFRESH_INTERVAL` is absent.
 - `BEYONDTRUST_ALL_SECRETS_ENABLED` is accepted for compatibility, but Secret Safe loading still uses `BEYONDTRUST_SECRET_SAFE_PATHS`.
 - Demo applications intentionally print raw secret values. Do not copy that logging style into production code.
+- Demo-only helper parameters:
+  `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
+  `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
+  `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
 
 More docs:
 

@@ -49,7 +49,7 @@ public sealed class BeyondTrustConfigurationProviderTests
             });
 
         provider.Load();
-        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", null);
+        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", new object?[] { null });
 
         Assert.True(provider.TryGet("bt.acc.Sys.Account", out var accountValue));
         Assert.Equal("second-value", accountValue);
@@ -77,7 +77,7 @@ public sealed class BeyondTrustConfigurationProviderTests
             });
 
         provider.Load();
-        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", null);
+        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", new object?[] { null });
 
         Assert.True(provider.TryGet("bt.acc.Sys.Account", out var accountValue));
         Assert.Equal("stable-value", accountValue);

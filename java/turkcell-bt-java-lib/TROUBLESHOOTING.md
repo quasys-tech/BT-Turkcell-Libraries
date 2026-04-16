@@ -3,6 +3,7 @@
 ## Auth Failed
 
 - Check `BEYONDTRUST_USE_APP_USER`.
+- When `BEYONDTRUST_ENABLED=true`, `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false`.
 - For OAuth, verify `BEYONDTRUST_CLIENT_ID` and `BEYONDTRUST_CLIENT_SECRET`.
 - For Classic API, verify `BEYONDTRUST_API_KEY` and optional `BEYONDTRUST_RUNAS_USER`.
 
@@ -36,10 +37,17 @@
 ## Refresh Not Working
 
 - `BEYONDTRUST_REFRESH_INTERVAL=0` disables background refresh.
-- `BT_REFRESH_TIME` is accepted, but `BEYONDTRUST_REFRESH_INTERVAL` is the canonical setting.
+- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical setting.
+- `BT_REFRESH_TIME` is accepted only as a legacy alias when the canonical setting is absent.
 - On refresh failure the library keeps the last successful snapshot by design.
 
 ## Java System Property Vs Environment Variable
 
 - Resolution order is `System property -> Environment variable -> Default value`.
 - Local demo runs can use `-D...` system properties without changing shell env values.
+
+## Demo Sample Key Not Printed
+
+- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, and `BT_EXAMPLE_SAFE_USERNAME` are demo-only helper parameters.
+- Set them to existing `bt.*` keys, for example `bt.acc.SampleSystem.SampleAccount` or `bt.safe.SampleFolder.SampleTitle.password`.
+- If they are absent, the demo falls back to the first matching loaded key.

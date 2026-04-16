@@ -14,6 +14,7 @@ public class BeyondTrustOptions {
 
     @JsonProperty("BEYONDTRUST_USE_APP_USER")
     private boolean useAppUser = false;
+    private boolean useAppUserConfigured = false;
 
     @JsonProperty("BEYONDTRUST_CLIENT_ID")
     private String clientId;
@@ -52,7 +53,11 @@ public class BeyondTrustOptions {
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
     public boolean isUseAppUser() { return useAppUser; }
-    public void setUseAppUser(boolean useAppUser) { this.useAppUser = useAppUser; }
+    public void setUseAppUser(boolean useAppUser) {
+        this.useAppUser = useAppUser;
+        this.useAppUserConfigured = true;
+    }
+    boolean isUseAppUserConfigured() { return useAppUserConfigured; }
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
     public String getClientSecret() { return clientSecret; }
@@ -79,7 +84,10 @@ public class BeyondTrustOptions {
         options.setEnabled(readBoolean("BEYONDTRUST_ENABLED", true));
         options.setApiUrl(readString("BEYONDTRUST_API_URL"));
         options.setApiKey(readString("BEYONDTRUST_API_KEY"));
-        options.setUseAppUser(readBoolean("BEYONDTRUST_USE_APP_USER", false));
+        Boolean useAppUser = readExplicitBoolean("BEYONDTRUST_USE_APP_USER");
+        if (useAppUser != null) {
+            options.setUseAppUser(useAppUser);
+        }
         options.setClientId(readString("BEYONDTRUST_CLIENT_ID"));
         options.setClientSecret(readString("BEYONDTRUST_CLIENT_SECRET"));
         options.setRunAsUser(readString("BEYONDTRUST_RUNAS_USER"));
@@ -108,6 +116,19 @@ public class BeyondTrustOptions {
         }
 
         return Boolean.parseBoolean(value);
+    }
+
+    private static Boolean readExplicitBoolean(String key) {
+        String value = readString(key);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
+            return Boolean.parseBoolean(value);
+        }
+
+        throw new IllegalArgumentException("Invalid " + key + " value. Expected 'true' or 'false'.");
     }
 
     private static int readRefreshInterval() {

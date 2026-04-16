@@ -95,7 +95,9 @@ public class BeyondTrustConfigurationManager implements AutoCloseable {
             missingSettings.add("BEYONDTRUST_API_URL");
         }
 
-        if (options.isUseAppUser()) {
+        if (!options.isUseAppUserConfigured()) {
+            missingSettings.add("BEYONDTRUST_USE_APP_USER");
+        } else if (options.isUseAppUser()) {
             if (options.getClientId() == null || options.getClientId().isBlank()) {
                 missingSettings.add("BEYONDTRUST_CLIENT_ID");
             }

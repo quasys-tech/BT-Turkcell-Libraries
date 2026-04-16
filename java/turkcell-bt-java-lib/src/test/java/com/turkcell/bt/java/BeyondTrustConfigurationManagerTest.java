@@ -53,6 +53,7 @@ class BeyondTrustConfigurationManagerTest {
         assertTrue(options.isEnabled());
         assertEquals("https://pam.example.com/BeyondTrust/api/public/v3", options.getApiUrl());
         assertTrue(options.isUseAppUser());
+        assertTrue(options.isUseAppUserConfigured());
         assertEquals("client-id", options.getClientId());
         assertEquals("client-secret", options.getClientSecret());
         assertEquals("pem-content", options.getCertificateContent());
@@ -67,6 +68,59 @@ class BeyondTrustConfigurationManagerTest {
         BeyondTrustOptions options = BeyondTrustOptions.fromEnv();
 
         assertEquals(45, options.getRefreshIntervalSeconds());
+    }
+
+    @Test
+    @DisplayName("fromEnv explicit false verildiginde classic mode secimini korumali")
+    void fromEnvSupportsExplicitClassicMode() {
+        System.setProperty("BEYONDTRUST_USE_APP_USER", "false");
+
+        BeyondTrustOptions options = BeyondTrustOptions.fromEnv();
+
+        assertFalse(options.isUseAppUser());
+        assertTrue(options.isUseAppUserConfigured());
+    }
+
+    @Test
+    @DisplayName("Enabled oldugunda BEYONDTRUST_USE_APP_USER eksikse validation error vermeli")
+    void validateRequiresExplicitUseAppUserWhenEnabled() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setApiKey("api-key");
+
+        try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, Map::of)) {
+            assertTrue(invokeValidateRequiredSettings(manager).contains("BEYONDTRUST_USE_APP_USER"));
+        }
+    }
+
+    @Test
+    @DisplayName("OAuth mode secildiginde client id ve secret zorunlu olmali")
+    void validateRequiresOAuthCredentialsWhenUseAppUserTrue() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(true);
+
+        try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, Map::of)) {
+            var missingSettings = invokeValidateRequiredSettings(manager);
+
+            assertTrue(missingSettings.contains("BEYONDTRUST_CLIENT_ID"));
+            assertTrue(missingSettings.contains("BEYONDTRUST_CLIENT_SECRET"));
+        }
+    }
+
+    @Test
+    @DisplayName("Classic mode secildiginde api key zorunlu olmali")
+    void validateRequiresApiKeyWhenUseAppUserFalse() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(false);
+
+        try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, Map::of)) {
+            assertTrue(invokeValidateRequiredSettings(manager).contains("BEYONDTRUST_API_KEY"));
+        }
     }
 
     @Test
@@ -138,5 +192,12 @@ class BeyondTrustConfigurationManagerTest {
         Method method = instance.getClass().getDeclaredMethod(methodName);
         method.setAccessible(true);
         method.invoke(instance);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.List<String> invokeValidateRequiredSettings(BeyondTrustConfigurationManager manager) throws Exception {
+        Method method = BeyondTrustConfigurationManager.class.getDeclaredMethod("validateRequiredSettings");
+        method.setAccessible(true);
+        return (java.util.List<String>) method.invoke(manager);
     }
 }

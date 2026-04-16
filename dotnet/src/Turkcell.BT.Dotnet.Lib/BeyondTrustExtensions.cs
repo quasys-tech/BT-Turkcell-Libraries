@@ -43,16 +43,69 @@ public static class BeyondTrustExtensions
 
     internal static BeyondTrustOptions BindOptions(IConfiguration configuration)
     {
-        var options = new BeyondTrustOptions();
-        configuration.Bind(options);
-
-        if (options.RefreshIntervalSeconds <= 0 &&
-            int.TryParse(configuration["BT_REFRESH_TIME"], out var legacyRefreshInterval))
+        var options = new BeyondTrustOptions
         {
-            options.RefreshIntervalSeconds = legacyRefreshInterval;
+            Enabled = ReadBoolean(configuration, "BEYONDTRUST_ENABLED", true),
+            ApiUrl = configuration["BEYONDTRUST_API_URL"] ?? string.Empty,
+            ApiKey = configuration["BEYONDTRUST_API_KEY"] ?? string.Empty,
+            ClientId = configuration["BEYONDTRUST_CLIENT_ID"],
+            ClientSecret = configuration["BEYONDTRUST_CLIENT_SECRET"],
+            RunAsUser = configuration["BEYONDTRUST_RUNAS_USER"],
+            IgnoreSslErrors = ReadBoolean(configuration, "BEYONDTRUST_IGNORE_SSL_ERRORS", false),
+            CertificateContent = configuration["BEYONDTRUST_CERTIFICATE_CONTENT"],
+            RefreshIntervalSeconds = ResolveRefreshInterval(configuration),
+            ManagedAccounts = configuration["BEYONDTRUST_MANAGED_ACCOUNTS"],
+            AllManagedAccountsEnabled = ReadBoolean(configuration, "BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", false),
+            SecretSafePaths = configuration["BEYONDTRUST_SECRET_SAFE_PATHS"],
+            AllSecretsEnabled = ReadBoolean(configuration, "BEYONDTRUST_ALL_SECRETS_ENABLED", false)
+        };
+
+        var useAppUserValue = configuration["BEYONDTRUST_USE_APP_USER"];
+        if (!string.IsNullOrWhiteSpace(useAppUserValue))
+        {
+            options.UseAppUser = ReadBoolean(configuration, "BEYONDTRUST_USE_APP_USER", false);
         }
 
         return options;
+    }
+
+    internal static int ResolveRefreshInterval(IConfiguration configuration)
+    {
+        var canonicalValue = configuration["BEYONDTRUST_REFRESH_INTERVAL"];
+        if (!string.IsNullOrWhiteSpace(canonicalValue))
+        {
+            if (int.TryParse(canonicalValue, out var refreshInterval))
+            {
+                return refreshInterval;
+            }
+
+            throw new InvalidOperationException("Invalid BEYONDTRUST_REFRESH_INTERVAL value. Expected an integer number of seconds.");
+        }
+
+        var legacyValue = configuration["BT_REFRESH_TIME"];
+        if (!string.IsNullOrWhiteSpace(legacyValue) &&
+            int.TryParse(legacyValue, out var legacyRefreshInterval))
+        {
+            return legacyRefreshInterval;
+        }
+
+        return BeyondTrustOptions.DefaultRefreshIntervalSeconds;
+    }
+
+    private static bool ReadBoolean(IConfiguration configuration, string key, bool defaultValue)
+    {
+        var rawValue = configuration[key];
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return defaultValue;
+        }
+
+        if (bool.TryParse(rawValue, out var parsedValue))
+        {
+            return parsedValue;
+        }
+
+        throw new InvalidOperationException($"Invalid {key} value. Expected 'true' or 'false'.");
     }
 }
 
@@ -62,7 +115,7 @@ internal static class BeyondTrustConfigurationValidation
     {
         var missingSettings = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(configuration["BEYONDTRUST_USE_APP_USER"]))
+        if (!options.UseAppUserConfigured)
         {
             missingSettings.Add("BEYONDTRUST_USE_APP_USER");
         }

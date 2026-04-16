@@ -3,6 +3,7 @@
 ## Auth Failed
 
 - Check `BEYONDTRUST_USE_APP_USER`.
+- When `BEYONDTRUST_ENABLED=true`, `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false`.
 - For OAuth, verify `BEYONDTRUST_CLIENT_ID` and `BEYONDTRUST_CLIENT_SECRET`.
 - For Classic API, verify `BEYONDTRUST_API_KEY` and optional `BEYONDTRUST_RUNAS_USER`.
 
@@ -36,7 +37,16 @@
 ## Refresh Not Working
 
 - `BEYONDTRUST_REFRESH_INTERVAL=0` disables background refresh.
+- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical setting and wins when both refresh variables are present.
+- `BT_REFRESH_TIME` is legacy-only and is used only when the canonical setting is absent and valid.
+- If `BEYONDTRUST_REFRESH_INTERVAL` is present but invalid, fix that value instead of expecting a silent fallback to `BT_REFRESH_TIME`.
 - On refresh failure the library keeps the last successful snapshot by design.
+
+## Demo Sample Key Not Printed
+
+- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, and `BT_EXAMPLE_SAFE_USERNAME` are demo-only helper parameters.
+- Set them to existing `bt.*` keys, for example `bt.acc.SampleSystem.SampleAccount` or `bt.safe.SampleFolder.SampleTitle.password`.
+- If they are absent, the demo falls back to the first matching loaded key.
 
 ## Configuration Load Expectation
 

@@ -72,14 +72,23 @@ The demo app:
 
 - reads env variables only
 - supports both auth modes
+- requires `BEYONDTRUST_USE_APP_USER` to be explicitly set in every enabled sample
 - prints all loaded `bt.*` keys
 - prints one managed account value and one Secret Safe password value as raw output
+- accepts demo-only helper parameters to choose sample keys:
+  `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, `BT_EXAMPLE_SAFE_USERNAME`
 
 Run:
 
 ```bash
 dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
 ```
+
+Demo helper examples:
+
+- `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
 
 ## OAuth Scenario
 
@@ -100,3 +109,9 @@ Required variables:
 - `BEYONDTRUST_USE_APP_USER=false`
 - `BEYONDTRUST_API_KEY=<API_KEY>` or `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
 - `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` when you want to supply `runas` separately
+
+## Refresh Interval Note
+
+- Use `BEYONDTRUST_REFRESH_INTERVAL` as the canonical setting.
+- `BT_REFRESH_TIME` is accepted only for backward compatibility when the canonical setting is absent.
+- If `BEYONDTRUST_REFRESH_INTERVAL` is present but invalid, treat it as a configuration error instead of falling back to `BT_REFRESH_TIME`.

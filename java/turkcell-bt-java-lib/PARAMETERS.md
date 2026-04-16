@@ -4,7 +4,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `BEYONDTRUST_ENABLED` | No | Both | `true` | Enables or disables the manager. | `true` |
 | `BEYONDTRUST_API_URL` | Yes | Both | - | BeyondTrust API base URL. | `https://pam.example.com/BeyondTrust/api/public/v3` |
-| `BEYONDTRUST_USE_APP_USER` | Yes | Both | `false` | Selects OAuth (`true`) or Classic API (`false`). | `false` |
+| `BEYONDTRUST_USE_APP_USER` | Yes when enabled | Both | - | Must be explicitly set to `true` for OAuth or `false` for Classic API when `BEYONDTRUST_ENABLED=true`. | `false` |
 | `BEYONDTRUST_CLIENT_ID` | Yes | OAuth | - | OAuth client identifier. | `<CLIENT_ID>` |
 | `BEYONDTRUST_CLIENT_SECRET` | Yes | OAuth | - | OAuth client secret. | `<CLIENT_SECRET>` |
 | `BEYONDTRUST_API_KEY` | Yes | Classic API | - | Classic API key, raw or `PS-Auth` format. | `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;` |
@@ -17,3 +17,13 @@
 | `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` | No | Both | `false` | Loads all managed accounts returned by the API. | `false` |
 | `BEYONDTRUST_SECRET_SAFE_PATHS` | No | Both | - | Comma or semicolon separated Secret Safe paths. | `Team/Db,Team/Api` |
 | `BEYONDTRUST_ALL_SECRETS_ENABLED` | No | Both | `false` | Compatibility flag. Secret Safe loading still stays path-based. | `false` |
+
+## Demo-Only Helper Parameters
+
+These parameters are for the demo application only. They are not library core settings.
+
+| Parameter | Required | Mode | Default | Description | Example |
+| --- | --- | --- | --- | --- | --- |
+| `BT_EXAMPLE_ACCOUNT` | No | Demo only | First matching `bt.acc.*` key | Selects the managed account key that the demo highlights in raw output. | `bt.acc.SampleSystem.SampleAccount` |
+| `BT_EXAMPLE_SAFE_PASSWORD` | No | Demo only | First matching `bt.safe.*.password` key | Selects the Secret Safe password key that the demo highlights in raw output. | `bt.safe.SampleFolder.SampleTitle.password` |
+| `BT_EXAMPLE_SAFE_USERNAME` | No | Demo only | Matching `bt.safe.*.username` key from the loaded snapshot | Documents the demo's username companion key for the same Secret Safe entry. | `bt.safe.SampleFolder.SampleTitle.username` |

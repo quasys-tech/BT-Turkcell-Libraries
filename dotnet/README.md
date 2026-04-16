@@ -28,8 +28,14 @@ var secretPassword = configuration["bt.safe.Team/Db.AppDb.password"];
 
 Notes:
 
+- `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false` whenever `BEYONDTRUST_ENABLED=true`.
+- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical refresh setting. `BT_REFRESH_TIME` is accepted only as a legacy alias when the canonical setting is absent.
 - `BEYONDTRUST_ALL_SECRETS_ENABLED` is accepted for backward compatibility, but this version still loads Secret Safe values by `BEYONDTRUST_SECRET_SAFE_PATHS`.
 - Demo applications intentionally print raw secret values. Do not copy that logging style into production code.
+- Demo-only helper parameters:
+  `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
+  `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
+  `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
 
 More docs:
 

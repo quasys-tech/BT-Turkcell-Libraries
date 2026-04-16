@@ -7,6 +7,10 @@ namespace Turkcell.BT.Dotnet.Lib;
 /// </summary>
 public sealed class BeyondTrustOptions
 {
+    public const int DefaultRefreshIntervalSeconds = 1800;
+
+    private bool _useAppUser;
+
     [ConfigurationKeyName("BEYONDTRUST_ENABLED")]
     public bool Enabled { get; set; } = true;
 
@@ -17,7 +21,17 @@ public sealed class BeyondTrustOptions
     public string ApiKey { get; set; } = string.Empty;
 
     [ConfigurationKeyName("BEYONDTRUST_USE_APP_USER")]
-    public bool UseAppUser { get; set; } = false;
+    public bool UseAppUser
+    {
+        get => _useAppUser;
+        set
+        {
+            _useAppUser = value;
+            UseAppUserConfigured = true;
+        }
+    }
+
+    internal bool UseAppUserConfigured { get; private set; }
 
     [ConfigurationKeyName("BEYONDTRUST_CLIENT_ID")]
     public string? ClientId { get; set; }
@@ -35,7 +49,7 @@ public sealed class BeyondTrustOptions
     public string? CertificateContent { get; set; }
 
     [ConfigurationKeyName("BEYONDTRUST_REFRESH_INTERVAL")]
-    public int RefreshIntervalSeconds { get; set; } = 1800;
+    public int RefreshIntervalSeconds { get; set; } = DefaultRefreshIntervalSeconds;
 
     [ConfigurationKeyName("BEYONDTRUST_MANAGED_ACCOUNTS")]
     public string? ManagedAccounts { get; set; }

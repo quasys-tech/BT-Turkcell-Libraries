@@ -70,8 +70,11 @@ The main demo app:
 
 - reads Java system properties first, then environment variables
 - supports both auth modes
+- requires `BEYONDTRUST_USE_APP_USER` to be explicitly set in every enabled sample
 - prints all loaded `bt.*` keys
 - prints one managed account value and one Secret Safe password value as raw output
+- accepts demo-only helper parameters to choose sample keys:
+  `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, `BT_EXAMPLE_SAFE_USERNAME`
 
 Run:
 
@@ -79,6 +82,12 @@ Run:
 mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
 java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 ```
+
+Demo helper examples:
+
+- `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
 
 ## OAuth Scenario
 
@@ -99,3 +108,9 @@ Required variables:
 - `BEYONDTRUST_USE_APP_USER=false`
 - `BEYONDTRUST_API_KEY=<API_KEY>` or `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
 - `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` when you want to supply `runas` separately
+
+## Refresh Interval Note
+
+- Use `BEYONDTRUST_REFRESH_INTERVAL` as the canonical setting.
+- `BT_REFRESH_TIME` is accepted only for backward compatibility when the canonical setting is absent.
+- Local Java runs should still set `BEYONDTRUST_USE_APP_USER` explicitly through either a system property or an environment variable.

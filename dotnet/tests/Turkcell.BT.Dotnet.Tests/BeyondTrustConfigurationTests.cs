@@ -13,7 +13,9 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
         "BEYONDTRUST_API_KEY",
         "BEYONDTRUST_RUNAS_USER",
         "BEYONDTRUST_CLIENT_ID",
-        "BEYONDTRUST_CLIENT_SECRET"
+        "BEYONDTRUST_CLIENT_SECRET",
+        "BEYONDTRUST_REFRESH_INTERVAL",
+        "BT_REFRESH_TIME"
     ];
 
     [Fact]
@@ -64,22 +66,94 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
     }
 
     [Fact]
+    public void AddBeyondTrustSecrets_DoesNotAddSource_WhenUseAppUserIsMissing()
+    {
+        SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
+        SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.example.com/BeyondTrust/api/public/v3");
+        SetEnvironmentVariable("BEYONDTRUST_API_KEY", "raw-api-key-value");
+
+        var builder = new ConfigurationBuilder().AddEnvironmentVariables();
+
+        builder.AddBeyondTrustSecrets();
+
+        Assert.DoesNotContain(builder.Sources, source => source is BeyondTrustConfigurationSource);
+    }
+
+    [Fact]
+    public void BindOptions_UsesCanonicalRefreshInterval_WhenCanonicalValueExists()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BEYONDTRUST_REFRESH_INTERVAL"] = "240"
+        });
+
+        var options = BeyondTrustExtensions.BindOptions(configuration);
+
+        Assert.Equal(240, options.RefreshIntervalSeconds);
+    }
+
+    [Fact]
     public void BindOptions_UsesLegacyRefreshIntervalAlias_WhenCanonicalValueMissing()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["BEYONDTRUST_ENABLED"] = "true",
-                ["BEYONDTRUST_API_URL"] = "https://pam.example.com/BeyondTrust/api/public/v3",
-                ["BEYONDTRUST_USE_APP_USER"] = "false",
-                ["BEYONDTRUST_API_KEY"] = "raw-api-key-value",
-                ["BT_REFRESH_TIME"] = "120"
-            })
-            .Build();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BT_REFRESH_TIME"] = "120"
+        });
 
         var options = BeyondTrustExtensions.BindOptions(configuration);
 
         Assert.Equal(120, options.RefreshIntervalSeconds);
+    }
+
+    [Fact]
+    public void BindOptions_UsesCanonicalRefreshInterval_WhenBothCanonicalAndLegacyExist()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BEYONDTRUST_REFRESH_INTERVAL"] = "240",
+            ["BT_REFRESH_TIME"] = "120"
+        });
+
+        var options = BeyondTrustExtensions.BindOptions(configuration);
+
+        Assert.Equal(240, options.RefreshIntervalSeconds);
+    }
+
+    [Fact]
+    public void BindOptions_UsesDefaultRefreshInterval_WhenCanonicalAndLegacyAreMissing()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>());
+
+        var options = BeyondTrustExtensions.BindOptions(configuration);
+
+        Assert.Equal(BeyondTrustOptions.DefaultRefreshIntervalSeconds, options.RefreshIntervalSeconds);
+    }
+
+    [Fact]
+    public void BindOptions_UsesDefaultRefreshInterval_WhenLegacyAliasIsInvalidAndCanonicalMissing()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BT_REFRESH_TIME"] = "not-an-integer"
+        });
+
+        var options = BeyondTrustExtensions.BindOptions(configuration);
+
+        Assert.Equal(BeyondTrustOptions.DefaultRefreshIntervalSeconds, options.RefreshIntervalSeconds);
+    }
+
+    [Fact]
+    public void BindOptions_Throws_WhenCanonicalRefreshIntervalIsInvalid()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["BEYONDTRUST_REFRESH_INTERVAL"] = "not-an-integer",
+            ["BT_REFRESH_TIME"] = "120"
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => BeyondTrustExtensions.BindOptions(configuration));
+
+        Assert.Contains("BEYONDTRUST_REFRESH_INTERVAL", exception.Message);
     }
 
     public void Dispose()
@@ -93,5 +167,12 @@ public sealed class BeyondTrustConfigurationTests : IDisposable
     private static void SetEnvironmentVariable(string key, string? value)
     {
         Environment.SetEnvironmentVariable(key, value);
+    }
+
+    private static IConfiguration BuildConfiguration(Dictionary<string, string?> values)
+    {
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(values)
+            .Build();
     }
 }
