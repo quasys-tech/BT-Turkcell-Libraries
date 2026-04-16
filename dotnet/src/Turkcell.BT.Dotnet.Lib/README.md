@@ -1,22 +1,22 @@
 # Turkcell.BT.Dotnet.Lib Package Notes
 
-This package adds BeyondTrust values into the normal `.NET` configuration pipeline.
+Bu package, BeyondTrust value'larini standart `.NET` configuration pipeline icine ekler.
 
-Behavior summary:
+## Behavior Ozeti
 
-- Uses `builder.Configuration.AddBeyondTrustSecrets();`
-- Supports OAuth and Classic API auth
-- Keeps the canonical key formats unchanged
-- Preserves the last successful snapshot when a refresh fails
-- Does not publish fake `ERROR_*` secret values
+- `builder.Configuration.AddBeyondTrustSecrets();` ile eklenir
+- `OAuth` ve `classic API auth` destekler
+- Canonical key format'larini degistirmez
+- Refresh basarisiz olursa son basarili snapshot'i korur
+- Fake `ERROR_*` secret value publish etmez
 
-Canonical key formats:
+## Canonical Key Formatlari
 
 - `bt.acc.{SystemName}.{AccountName}`
 - `bt.safe.{Folder}.{Title}.password`
 - `bt.safe.{Folder}.{Title}.username`
 
-See the higher-level consumer guides in:
+## Diger Docs
 
 - [../../README.md](../../README.md)
 - [../../USAGE.md](../../USAGE.md)

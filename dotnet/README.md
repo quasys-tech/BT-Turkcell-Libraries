@@ -1,19 +1,19 @@
 # Turkcell.BT.Dotnet.Lib
 
-`Turkcell.BT.Dotnet.Lib` loads BeyondTrust managed account passwords and Secret Safe values into `IConfiguration`.
+`Turkcell.BT.Dotnet.Lib`, BeyondTrust managed account password ve Secret Safe value'larini `IConfiguration` icine yukler.
 
-Supported auth modes:
+## Desteklenen Auth Mode'lar
 
-- OAuth / App User / Client Credentials
-- Classic API authentication
+- `OAuth / App User / Client Credentials`
+- `classic API auth`
 
-Produced key formats:
+## Uretilen Key Formatlari
 
 - `bt.acc.{SystemName}.{AccountName}`
 - `bt.safe.{Folder}.{Title}.password`
 - `bt.safe.{Folder}.{Title}.username`
 
-Quick integration:
+## Quick Integration
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
@@ -26,24 +26,21 @@ var managedPassword = configuration["bt.acc.LinuxProd.root"];
 var secretPassword = configuration["bt.safe.Team/Db.AppDb.password"];
 ```
 
-Notes:
+## Notlar
 
-- Same shared parameter set is expected to produce the same behavior in `.NET` and `Java`.
-- `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false` whenever `BEYONDTRUST_ENABLED=true`.
-- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical refresh setting.
-- `BT_REFRESH_TIME` is a legacy alias that is used only when `BEYONDTRUST_REFRESH_INTERVAL` is absent and parseable.
-- An invalid `BEYONDTRUST_REFRESH_INTERVAL` value is a configuration error. An invalid `BT_REFRESH_TIME` value falls back to the default refresh interval only when the canonical setting is absent.
-- Invalid boolean values for shared boolean parameters are configuration errors.
-- `BEYONDTRUST_ALL_SECRETS_ENABLED` is accepted for backward compatibility, but this version still loads Secret Safe values by `BEYONDTRUST_SECRET_SAFE_PATHS`.
-- Demo applications intentionally print raw secret values. Do not copy that logging style into production code.
-- Demo-only helper parameters choose which raw demo values are highlighted:
-  `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
-  `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
-  `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
+- `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_ENABLED=true` oldugunda explicit olarak verilmelidir.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
+- `BT_REFRESH_TIME` legacy alias olarak desteklenir. Canonical parameter yoksa ve parse edilebiliyorsa kullanilir.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur. Bu durumda `BT_REFRESH_TIME` veya default value'ya silent fallback yoktur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.
+- Shared boolean parameter'lar invalid ise validation error olusur.
+- `BEYONDTRUST_ALL_SECRETS_ENABLED` backward compatibility icin kabul edilir, fakat Secret Safe yuklemesi yine `BEYONDTRUST_SECRET_SAFE_PATHS` ile path-based calisir.
+- Demo app raw secret logging yaptigi icin ayni logging style production kullanimda onerilmez.
+- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD` ve `BT_EXAMPLE_SAFE_USERNAME` demo-only helper parameter'lardir.
 
-More docs:
+## Diger Docs
 
 - [USAGE.md](USAGE.md)
 - [PARAMETERS.md](PARAMETERS.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- Library package notes: [src/Turkcell.BT.Dotnet.Lib/README.md](src/Turkcell.BT.Dotnet.Lib/README.md)
+- Package-level notlar: [src/Turkcell.BT.Dotnet.Lib/README.md](src/Turkcell.BT.Dotnet.Lib/README.md)

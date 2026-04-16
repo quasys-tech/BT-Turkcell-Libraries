@@ -2,56 +2,56 @@
 
 ## Auth Failed
 
-- Check `BEYONDTRUST_USE_APP_USER`.
-- When `BEYONDTRUST_ENABLED=true`, `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false`.
-- Invalid boolean values for `BEYONDTRUST_ENABLED`, `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_IGNORE_SSL_ERRORS`, `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED`, or `BEYONDTRUST_ALL_SECRETS_ENABLED` are configuration errors.
-- For OAuth, verify `BEYONDTRUST_CLIENT_ID` and `BEYONDTRUST_CLIENT_SECRET`.
-- For Classic API, verify `BEYONDTRUST_API_KEY` and optional `BEYONDTRUST_RUNAS_USER`.
+- `BEYONDTRUST_USE_APP_USER` degerini kontrol edin.
+- `BEYONDTRUST_ENABLED=true` ise `BEYONDTRUST_USE_APP_USER` explicit verilmelidir.
+- `BEYONDTRUST_ENABLED`, `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_IGNORE_SSL_ERRORS`, `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` ve `BEYONDTRUST_ALL_SECRETS_ENABLED` invalid boolean value alirsa validation error olusur.
+- `OAuth` kullaniyorsaniz `BEYONDTRUST_CLIENT_ID` ve `BEYONDTRUST_CLIENT_SECRET` degerlerini kontrol edin.
+- `classic API auth` kullaniyorsaniz `BEYONDTRUST_API_KEY` ve gerekliyse `BEYONDTRUST_RUNAS_USER` degerlerini kontrol edin.
 
-## API URL Wrong
+## API URL Yanlis
 
-- `BEYONDTRUST_API_URL` must point to the BeyondTrust public API base.
-- Expected endpoint family includes `Auth/Connect/Token`, `Auth/SignAppin`, `ManagedAccounts`, `Requests`, `Credentials/{id}`, `Requests/{id}/Checkin`, `Secrets-Safe/Secrets`.
+- `BEYONDTRUST_API_URL`, BeyondTrust public API base URL degerine isaret etmelidir.
+- Beklenen endpoint ailesi `Auth/Connect/Token`, `Auth/SignAppin`, `ManagedAccounts`, `Requests`, `Credentials/{id}`, `Requests/{id}/Checkin`, `Secrets-Safe/Secrets` endpoint'lerini icerir.
 
 ## SSL/TLS Error
 
-- Keep `BEYONDTRUST_IGNORE_SSL_ERRORS=false` in production.
-- If your endpoint uses a private CA, provide `BEYONDTRUST_CERTIFICATE_CONTENT`.
-- `BEYONDTRUST_IGNORE_SSL_ERRORS=true` is for demo or controlled dev use only.
+- Production icin `BEYONDTRUST_IGNORE_SSL_ERRORS=false` kullanin.
+- Private CA kullanan bir endpoint'e baglaniyorsaniz `BEYONDTRUST_CERTIFICATE_CONTENT` verin.
+- `BEYONDTRUST_IGNORE_SSL_ERRORS=true` sadece demo veya kontrollu dev ortami icin uygundur.
 
-## Secret Not Returned
+## Secret Gelmiyor
 
-- Check exact key usage.
-- Managed accounts use `bt.acc.{SystemName}.{AccountName}`.
-- Secret Safe values use `bt.safe.{Folder}.{Title}.password` and `bt.safe.{Folder}.{Title}.username`.
+- Key kullanimini birebir kontrol edin.
+- Managed account key format'i `bt.acc.{SystemName}.{AccountName}` seklindedir.
+- Secret Safe key format'lari `bt.safe.{Folder}.{Title}.password` ve `bt.safe.{Folder}.{Title}.username` seklindedir.
 
-## Managed Account Not Found
+## Managed Account Bulunamadi
 
-- Verify `BEYONDTRUST_MANAGED_ACCOUNTS` exactly matches the `SystemName.AccountName` returned by BeyondTrust.
-- If you want every accessible account, set `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED=true`.
+- `BEYONDTRUST_MANAGED_ACCOUNTS` degerinin BeyondTrust tarafindaki `SystemName.AccountName` ile birebir eslestigini kontrol edin.
+- Tum erisilebilir account'lari yuklemek istiyorsaniz `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED=true` kullanin.
 
-## Secret Safe Path Wrong
+## Secret Safe Path Yanlis
 
-- Verify `BEYONDTRUST_SECRET_SAFE_PATHS`.
-- `BEYONDTRUST_ALL_SECRETS_ENABLED` does not trigger global enumeration in this version.
+- `BEYONDTRUST_SECRET_SAFE_PATHS` degerini kontrol edin.
+- Bu surumde `BEYONDTRUST_ALL_SECRETS_ENABLED` global enumerate davranisi baslatmaz.
 
-## Refresh Not Working
+## Refresh Calismiyor
 
-- `BEYONDTRUST_REFRESH_INTERVAL=0` disables background refresh.
-- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical setting and wins when both refresh variables are present.
-- `BT_REFRESH_TIME` is legacy-only and is used only when the canonical setting is absent and valid.
-- If `BEYONDTRUST_REFRESH_INTERVAL` is present but invalid, fix that value instead of expecting a silent fallback to `BT_REFRESH_TIME`.
-- If `BT_REFRESH_TIME` is invalid and `BEYONDTRUST_REFRESH_INTERVAL` is absent, the default refresh interval is used.
-- On refresh failure the library keeps the last successful snapshot by design.
+- `BEYONDTRUST_REFRESH_INTERVAL=0` background refresh'i disabled yapar.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir ve iki refresh parameter birlikte verilirse her zaman kazanir.
+- `BT_REFRESH_TIME`, canonical parameter yoksa kullanilan legacy alias'tir.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.
+- Refresh sirasinda bir hata olursa library son basarili snapshot'i korur.
 
-## Demo Sample Key Not Printed
+## Demo Example Output Gelmiyor
 
-- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, and `BT_EXAMPLE_SAFE_USERNAME` are demo-only helper parameters.
-- Set them to existing `bt.*` keys, for example `bt.acc.SampleSystem.SampleAccount` or `bt.safe.SampleFolder.SampleTitle.password`.
-- If a helper parameter is absent, the demo prints a skip message for that specific sample output.
-- If a helper parameter points to a key that was not loaded, the demo prints `Demo example key not found: <key>`.
+- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD` ve `BT_EXAMPLE_SAFE_USERNAME` demo-only helper parameter'lardir.
+- Bu parameter'lari gercek bir `bt.*` key'ine isaret edecek sekilde set edin.
+- Helper parameter set edilmemisse demo app ilgili example output icin skip mesaji yazar.
+- Helper parameter var ama key yuklenmemisse demo app `Demo example key not found: <key>` mesaji yazar.
 
-## Configuration Load Expectation
+## Configuration Load Beklentisi
 
-- `builder.Configuration.AddBeyondTrustSecrets();` adds a configuration provider.
-- Values appear under normal `IConfiguration` keys, not through a separate API surface.
+- `builder.Configuration.AddBeyondTrustSecrets();` cagrisi bir configuration provider ekler.
+- Yuklenen degerler ayri bir API yerine normal `IConfiguration` key'leri uzerinden okunur.

@@ -1,8 +1,10 @@
 # Build Verification
 
-## Execution Time
+## Overview
 
-- Verification completed at `2026-04-16T22:07:19.0739767+03:00`
+- Bu file, `BT-Turkcell-Libraries` repo'su icin `2026-04-16T22:27:19.4509046+03:00` tarihinde tekrar uretilen verification run'inin ozetini verir.
+- Bu turda code behavior degistirilmedi. Sadece documentation dili standardize edildi ve `verification/` altindaki raw output file'lari yeniden olusturuldu.
+- Bu ozet icindeki tum log referanslari repo root altindaki gercek `verification/*.txt` file'lariyla birebir uyumludur.
 
 ## Toolchain
 
@@ -16,41 +18,42 @@ Raw logs:
 - [verification/dotnet-info.txt](verification/dotnet-info.txt)
 - [verification/maven-version.txt](verification/maven-version.txt)
 
-## Commands
+## Executed Commands
 
-| Command | Exit Code | Result | Notes |
-| --- | --- | --- | --- |
-| `dotnet --info` | `0` | Passed | Toolchain available. |
-| `mvn -v` | `0` | Passed | Toolchain available. |
-| `dotnet restore dotnet/TurkcellBTDotnetSolution.sln` | `0` | Passed | Solution restore completed. |
-| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed | Release build completed. |
-| `dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Passed | `32/32` tests passed. |
-| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Passed | `28/28` tests passed. |
-| `mvn -f java/turkcell-bt-java-lib/pom-demo.xml package` | `0` | Passed | Demo shaded jar packaged successfully. |
+```powershell
+dotnet --info
+mvn -v
+dotnet restore dotnet/TurkcellBTDotnetSolution.sln
+dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release
+dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release
+mvn -f java/turkcell-bt-java-lib/pom.xml test
+mvn -f java/turkcell-bt-java-lib/pom-demo.xml package
+```
 
-Raw logs:
+## Results
 
-- [verification/dotnet-restore.txt](verification/dotnet-restore.txt)
-- [verification/dotnet-build.txt](verification/dotnet-build.txt)
-- [verification/dotnet-test.txt](verification/dotnet-test.txt)
-- [verification/maven-test.txt](verification/maven-test.txt)
-- [verification/maven-package.txt](verification/maven-package.txt)
+| Command | Exit Code | Result | Kisa sonuc | Raw log |
+| --- | --- | --- | --- | --- |
+| `dotnet --info` | `0` | Pass | Toolchain bilgisi alindi. | [verification/dotnet-info.txt](verification/dotnet-info.txt) |
+| `mvn -v` | `0` | Pass | Maven ve Java version bilgisi alindi. | [verification/maven-version.txt](verification/maven-version.txt) |
+| `dotnet restore dotnet/TurkcellBTDotnetSolution.sln` | `0` | Pass | Solution restore tamamlandi. | [verification/dotnet-restore.txt](verification/dotnet-restore.txt) |
+| `dotnet build dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Pass | Release build `0 Warning`, `0 Error` ile tamamlandi. | [verification/dotnet-build.txt](verification/dotnet-build.txt) |
+| `dotnet test dotnet/TurkcellBTDotnetSolution.sln -c Release` | `0` | Pass | `.NET` test run `32/32` passed. | [verification/dotnet-test.txt](verification/dotnet-test.txt) |
+| `mvn -f java/turkcell-bt-java-lib/pom.xml test` | `0` | Pass | `Java` test run `28/28` passed ve `BUILD SUCCESS` uretildi. | [verification/maven-test.txt](verification/maven-test.txt) |
+| `mvn -f java/turkcell-bt-java-lib/pom-demo.xml package` | `0` | Pass | Demo package build `BUILD SUCCESS` ile tamamlandi. | [verification/maven-package.txt](verification/maven-package.txt) |
 
-## Parity Verified In This Round
+## Verification Scope
 
-- `BEYONDTRUST_REFRESH_INTERVAL` and `BT_REFRESH_TIME` now follow the same precedence, default, and error semantics in `.NET` and `Java`.
-- Invalid canonical refresh values now fail in both libraries instead of silently falling back.
-- Invalid legacy refresh values now fall back to the default only when the canonical setting is absent in both libraries.
-- `BEYONDTRUST_USE_APP_USER` validation remains explicit in both libraries when `BEYONDTRUST_ENABLED=true`.
-- Shared boolean parameters now fail fast on invalid values in both libraries:
-  `BEYONDTRUST_ENABLED`, `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_IGNORE_SSL_ERRORS`, `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED`, `BEYONDTRUST_ALL_SECRETS_ENABLED`.
+- `verification/` klasoru bu turda yeniden olusturuldu.
+- `.NET` tarafinda `restore`, `build` ve `test` komutlari tekrar kosuldu.
+- `Java` tarafinda `test` ve demo `package` komutlari tekrar kosuldu.
+- `BUILD_VERIFICATION.md` icindeki log referanslari mevcut file isimleriyle birebir eslestirildi.
+- Root `README.md`, `.NET` ve `Java` docs seti Turkce anlatim + English teknik terim standardina getirildi.
 
-## Failure Summary
+## Notes
 
-- No command failures remained in the final verification run.
-
-## Final Status
-
-- `.NET build/test passed`
-- `Java test/package passed`
-- Shared parameter parity checks passed for refresh precedence, auth-mode validation, and shared boolean parsing.
+- `verification/maven-test.txt` icinde gorulen `simulated refresh failure` satiri test coverage'in bilincli bir parcasidir. Command exit code `0` oldugu ve Maven sonucu `BUILD SUCCESS` oldugu icin verification sonucu degismez.
+- `verification/maven-test.txt` ve `verification/maven-package.txt` icinde warning satirlari vardir. Bu warning'ler package/test sonucunu fail etmemistir.
+- Final durum:
+  - `.NET build/test passed`
+  - `Java test/package passed`

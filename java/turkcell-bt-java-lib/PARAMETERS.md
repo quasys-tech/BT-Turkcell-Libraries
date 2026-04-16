@@ -1,37 +1,37 @@
 # Java Parameters
 
-| Parameter | Required | Mode | Default | Description | Example |
+| Parameter | Required | Mode | Default Value | Aciklama | Example |
 | --- | --- | --- | --- | --- | --- |
-| `BEYONDTRUST_ENABLED` | No | Both | `true` | Enables or disables the manager. Invalid boolean values are errors. | `true` |
-| `BEYONDTRUST_API_URL` | Yes | Both | - | BeyondTrust API base URL. | `https://pam.example.com/BeyondTrust/api/public/v3` |
-| `BEYONDTRUST_USE_APP_USER` | Yes when enabled | Both | - | Must be explicitly set to `true` for OAuth or `false` for Classic API when `BEYONDTRUST_ENABLED=true`. | `false` |
-| `BEYONDTRUST_CLIENT_ID` | Yes | OAuth | - | OAuth client identifier. | `<CLIENT_ID>` |
-| `BEYONDTRUST_CLIENT_SECRET` | Yes | OAuth | - | OAuth client secret. | `<CLIENT_SECRET>` |
-| `BEYONDTRUST_API_KEY` | Yes | Classic API | - | Classic API key, raw or `PS-Auth` format. | `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;` |
-| `BEYONDTRUST_RUNAS_USER` | No | Classic API | - | Optional `runas` value supplied separately. | `<RUNAS_USER>` |
-| `BEYONDTRUST_IGNORE_SSL_ERRORS` | No | Both | `false` | Disables TLS validation only when explicitly enabled. Invalid boolean values are errors. | `false` |
-| `BEYONDTRUST_CERTIFICATE_CONTENT` | No | Both | - | PEM certificate content used for custom TLS trust. | `-----BEGIN CERTIFICATE-----...` |
-| `BEYONDTRUST_REFRESH_INTERVAL` | No | Both | `1800` | Canonical refresh interval in seconds. Invalid values are errors. Use `0` to disable background refresh. | `300` |
-| `BT_REFRESH_TIME` | No | Both | - | Legacy alias for refresh interval. Used only when `BEYONDTRUST_REFRESH_INTERVAL` is absent and parseable; invalid legacy values fall back to the default. | `300` |
-| `BEYONDTRUST_MANAGED_ACCOUNTS` | No | Both | - | Semicolon-separated managed account targets. | `LinuxProd.root;WindowsProd.administrator` |
-| `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` | No | Both | `false` | Loads all managed accounts returned by the API. Invalid boolean values are errors. | `false` |
-| `BEYONDTRUST_SECRET_SAFE_PATHS` | No | Both | - | Comma or semicolon separated Secret Safe paths. | `Team/Db,Team/Api` |
-| `BEYONDTRUST_ALL_SECRETS_ENABLED` | No | Both | `false` | Compatibility flag. Secret Safe loading still stays path-based. Invalid boolean values are errors. | `false` |
+| `BEYONDTRUST_ENABLED` | No | Both | `true` | Manager'i enabled veya disabled yapar. Invalid boolean value validation error uretir. | `true` |
+| `BEYONDTRUST_API_URL` | Yes | Both | - | BeyondTrust public API base URL degeridir. | `https://pam.example.com/BeyondTrust/api/public/v3` |
+| `BEYONDTRUST_USE_APP_USER` | Yes when enabled | Both | - | `BEYONDTRUST_ENABLED=true` ise explicit verilmelidir. `true` degeri `OAuth`, `false` degeri `classic API auth` secer. | `false` |
+| `BEYONDTRUST_CLIENT_ID` | Yes | OAuth | - | `OAuth` icin client ID degeridir. | `<CLIENT_ID>` |
+| `BEYONDTRUST_CLIENT_SECRET` | Yes | OAuth | - | `OAuth` icin client secret degeridir. | `<CLIENT_SECRET>` |
+| `BEYONDTRUST_API_KEY` | Yes | classic API auth | - | Raw API key veya `PS-Auth` format'i alir. | `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;` |
+| `BEYONDTRUST_RUNAS_USER` | No | classic API auth | - | `runas` bilgisini ayri vermek icin kullanilir. | `<RUNAS_USER>` |
+| `BEYONDTRUST_IGNORE_SSL_ERRORS` | No | Both | `false` | TLS validation'i sadece explicit olarak enabled yapildiginda kapatir. Invalid boolean value validation error uretir. | `false` |
+| `BEYONDTRUST_CERTIFICATE_CONTENT` | No | Both | - | PEM certificate content degeridir. | `-----BEGIN CERTIFICATE-----...` |
+| `BEYONDTRUST_REFRESH_INTERVAL` | No | Both | `1800` | Canonical refresh interval parameter'idir. Invalid value validation error uretir. `0` degeri background refresh'i disabled yapar. | `300` |
+| `BT_REFRESH_TIME` | No | Both | - | Legacy alias'tir. Sadece `BEYONDTRUST_REFRESH_INTERVAL` yoksa ve parse edilebiliyorsa kullanilir. Invalid legacy value varsa default value kullanilir. | `300` |
+| `BEYONDTRUST_MANAGED_ACCOUNTS` | No | Both | - | `;` ile ayrilan managed account hedef listesidir. | `LinuxProd.root;WindowsProd.administrator` |
+| `BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` | No | Both | `false` | API tarafindan donen tum managed account'lari yukler. Invalid boolean value validation error uretir. | `false` |
+| `BEYONDTRUST_SECRET_SAFE_PATHS` | No | Both | - | `,` veya `;` ile ayrilan Secret Safe path listesidir. | `Team/Db,Team/Api` |
+| `BEYONDTRUST_ALL_SECRETS_ENABLED` | No | Both | `false` | Compatibility flag'dir. Secret Safe yuklemesi yine path-based calisir. Invalid boolean value validation error uretir. | `false` |
 
 ## Shared Behavior Notes
 
-- `BEYONDTRUST_REFRESH_INTERVAL` always wins over `BT_REFRESH_TIME`.
-- Invalid canonical refresh values are configuration errors.
-- Invalid legacy refresh values fall back to the default only when the canonical setting is absent.
-- `BEYONDTRUST_USE_APP_USER` must be explicit when `BEYONDTRUST_ENABLED=true`.
-- Shared boolean parameters use the same success/error/default semantics in `Java` and `.NET`.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
+- `BT_REFRESH_TIME` legacy alias'tir.
+- Canonical parameter invalid ise validation error olusur.
+- Legacy alias invalid ise ve canonical parameter yoksa default value kullanilir.
+- Shared boolean parameter'lar `Java` ve `.NET` tarafinda ayni success/error/default davranisini izler.
 
 ## Demo-Only Helper Parameters
 
-These parameters are for the demo application only. They are not library core settings.
+Bu parameter'lar library core configuration parameter'i degildir. Sadece demo app tarafinda example output secmek icin kullanilir.
 
-| Parameter | Required | Mode | Default | Description | Example |
+| Parameter | Required | Mode | Default Value | Aciklama | Example |
 | --- | --- | --- | --- | --- | --- |
-| `BT_EXAMPLE_ACCOUNT` | No | Demo only | Not set | Selects the managed account key that the demo raw-logs. | `bt.acc.SampleSystem.SampleAccount` |
-| `BT_EXAMPLE_SAFE_PASSWORD` | No | Demo only | Not set | Selects the Secret Safe password key that the demo raw-logs. | `bt.safe.SampleFolder.SampleTitle.password` |
-| `BT_EXAMPLE_SAFE_USERNAME` | No | Demo only | Not set | Selects the Secret Safe username key that the demo raw-logs. | `bt.safe.SampleFolder.SampleTitle.username` |
+| `BT_EXAMPLE_ACCOUNT` | No | Demo only | Not set | Demo app'in raw loglayacagi managed account key'ini secer. | `bt.acc.SampleSystem.SampleAccount` |
+| `BT_EXAMPLE_SAFE_PASSWORD` | No | Demo only | Not set | Demo app'in raw loglayacagi Secret Safe password key'ini secer. | `bt.safe.SampleFolder.SampleTitle.password` |
+| `BT_EXAMPLE_SAFE_USERNAME` | No | Demo only | Not set | Demo app'in raw loglayacagi Secret Safe username key'ini secer. | `bt.safe.SampleFolder.SampleTitle.username` |

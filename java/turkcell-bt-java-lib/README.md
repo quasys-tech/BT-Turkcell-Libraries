@@ -1,19 +1,19 @@
 # com.turkcell.bt.java
 
-`com.turkcell.bt.java` loads BeyondTrust managed account passwords and Secret Safe values into a refreshable in-memory configuration manager.
+`com.turkcell.bt.java`, BeyondTrust managed account password ve Secret Safe value'larini refresh edilebilir in-memory configuration manager icine yukler.
 
-Supported auth modes:
+## Desteklenen Auth Mode'lar
 
-- OAuth / App User / Client Credentials
-- Classic API authentication
+- `OAuth / App User / Client Credentials`
+- `classic API auth`
 
-Produced key formats:
+## Uretilen Key Formatlari
 
 - `bt.acc.{SystemName}.{AccountName}`
 - `bt.safe.{Folder}.{Title}.password`
 - `bt.safe.{Folder}.{Title}.username`
 
-Quick integration:
+## Quick Integration
 
 ```java
 try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad()) {
@@ -22,22 +22,20 @@ try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.c
 }
 ```
 
-Notes:
+## Notlar
 
-- Same shared parameter set is expected to produce the same behavior in `Java` and `.NET`.
-- `BEYONDTRUST_USE_APP_USER` must be explicitly set to `true` or `false` whenever `BEYONDTRUST_ENABLED=true`.
-- `BEYONDTRUST_REFRESH_INTERVAL` is the canonical refresh parameter.
-- `BT_REFRESH_TIME` is accepted only as a backward-compatible alias when `BEYONDTRUST_REFRESH_INTERVAL` is absent and parseable.
-- An invalid `BEYONDTRUST_REFRESH_INTERVAL` value is a configuration error. An invalid `BT_REFRESH_TIME` value falls back to the default refresh interval only when the canonical setting is absent.
-- Invalid boolean values for shared boolean parameters are configuration errors.
-- `BEYONDTRUST_ALL_SECRETS_ENABLED` is accepted for compatibility, but Secret Safe loading still uses `BEYONDTRUST_SECRET_SAFE_PATHS`.
-- Demo applications intentionally print raw secret values. Do not copy that logging style into production code.
-- Demo-only helper parameters choose which raw demo values are highlighted:
-  `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
-  `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
-  `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
+- `Java` ve `.NET` tarafinda ayni shared parameter set'inin ayni davranisi uretmesi hedeflenir.
+- `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_ENABLED=true` oldugunda explicit olarak verilmelidir.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
+- `BT_REFRESH_TIME` legacy alias olarak desteklenir. Canonical parameter yoksa ve parse edilebiliyorsa kullanilir.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur. Bu durumda legacy alias veya default value'ya silent fallback yoktur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.
+- Shared boolean parameter'lar invalid ise validation error olusur.
+- `BEYONDTRUST_ALL_SECRETS_ENABLED` compatibility icin kabul edilir, fakat Secret Safe yuklemesi yine `BEYONDTRUST_SECRET_SAFE_PATHS` ile path-based calisir.
+- Demo app raw secret logging yaptigi icin ayni logging style production kullanimda onerilmez.
+- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD` ve `BT_EXAMPLE_SAFE_USERNAME` demo-only helper parameter'lardir.
 
-More docs:
+## Diger Docs
 
 - [../USAGE.md](../USAGE.md)
 - [PARAMETERS.md](PARAMETERS.md)

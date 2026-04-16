@@ -1,8 +1,8 @@
 # Java Usage
 
-## Add The Library
+## Library Ekleme
 
-Maven dependency example:
+Maven dependency ornegi:
 
 ```xml
 <dependency>
@@ -23,7 +23,7 @@ try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.c
 
 ## Local Windows
 
-Classic API sample:
+`classic API auth` ornegi:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-apikey.ps1.sample
@@ -31,7 +31,7 @@ mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
 java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-OAuth sample:
+`OAuth` ornegi:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-oauth.ps1.sample
@@ -41,7 +41,7 @@ java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 
 ## Local Linux
 
-Classic API sample:
+`classic API auth` ornegi:
 
 ```bash
 source ./turkcell-bt-java-lib/examples/env/linux-apikey.sh.sample
@@ -49,7 +49,7 @@ mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
 java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 ```
 
-OAuth sample:
+`OAuth` ornegi:
 
 ```bash
 source ./turkcell-bt-java-lib/examples/env/linux-oauth.sh.sample
@@ -59,41 +59,39 @@ java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 
 ## Kubernetes
 
-Recommended manifests:
+Onerilen manifest setleri:
 
-- Classic API: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
-- OAuth: [turkcell-bt-java-lib/k8s/oauth-configmap.yml](turkcell-bt-java-lib/k8s/oauth-configmap.yml), [turkcell-bt-java-lib/k8s/oauth-secret.yml](turkcell-bt-java-lib/k8s/oauth-secret.yml), [turkcell-bt-java-lib/k8s/oauth-deployment.yml](turkcell-bt-java-lib/k8s/oauth-deployment.yml)
+- `classic API auth`: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
+- `OAuth`: [turkcell-bt-java-lib/k8s/oauth-configmap.yml](turkcell-bt-java-lib/k8s/oauth-configmap.yml), [turkcell-bt-java-lib/k8s/oauth-secret.yml](turkcell-bt-java-lib/k8s/oauth-secret.yml), [turkcell-bt-java-lib/k8s/oauth-deployment.yml](turkcell-bt-java-lib/k8s/oauth-deployment.yml)
 
-## Demo Application
+## Demo App
 
-The main demo app:
+Ana demo app:
 
-- reads Java system properties first, then environment variables
-- supports both auth modes
-- requires `BEYONDTRUST_USE_APP_USER` to be explicitly set in every enabled sample
-- prints all loaded `bt.*` keys
-- raw-logs the configured example managed account, Secret Safe password, and Secret Safe username keys
-- accepts demo-only helper parameters to choose sample keys:
-  `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, `BT_EXAMPLE_SAFE_USERNAME`
+- once `system property`, sonra `environment variable` okur
+- iki auth mode'u da destekler
+- `BEYONDTRUST_USE_APP_USER` degerinin explicit verilmesini bekler
+- yuklenen tum `bt.*` key'lerini yazdirir
+- secilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
 
-Run:
+Calistirma komutu:
 
 ```bash
 mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
 java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
 ```
 
-Demo helper examples:
+Demo-only helper parameter ornekleri:
 
 - `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
 - `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
 - `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- If one of these parameters is missing, the demo prints a skip message for that specific output.
-- If one of these parameters points to a key that is not loaded, the demo prints `Demo example key not found: <key>`.
+- Bir helper parameter set edilmemisse demo app ilgili example output icin skip mesaji yazar.
+- Bir helper parameter yuklenmis bir key'e isaret etmiyorsa demo app `Demo example key not found: <key>` mesaji yazar.
 
-## OAuth Scenario
+## OAuth Senaryosu
 
-Required variables:
+Gerekli parameter'lar:
 
 - `BEYONDTRUST_ENABLED=true`
 - `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
@@ -101,18 +99,19 @@ Required variables:
 - `BEYONDTRUST_CLIENT_ID=<CLIENT_ID>`
 - `BEYONDTRUST_CLIENT_SECRET=<CLIENT_SECRET>`
 
-## Classic API Scenario
+## classic API auth Senaryosu
 
-Required variables:
+Gerekli parameter'lar:
 
 - `BEYONDTRUST_ENABLED=true`
 - `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
 - `BEYONDTRUST_USE_APP_USER=false`
-- `BEYONDTRUST_API_KEY=<API_KEY>` or `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` when you want to supply `runas` separately
+- `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
+- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` degerini `runas` bilgisini ayri vermek istiyorsaniz kullanin
 
-## Refresh Interval Note
+## Refresh Interval Notu
 
-- Use `BEYONDTRUST_REFRESH_INTERVAL` as the canonical setting.
-- `BT_REFRESH_TIME` is accepted only for backward compatibility when the canonical setting is absent.
-- Local Java runs should still set `BEYONDTRUST_USE_APP_USER` explicitly through either a system property or an environment variable.
+- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dir.
+- `BT_REFRESH_TIME` sadece backward compatibility icin desteklenen legacy alias'tir.
+- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error olusur.
+- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa default value kullanilir.

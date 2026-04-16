@@ -1,24 +1,38 @@
 # BT-Turkcell-Libraries
 
-Production-ready BeyondTrust integration samples and libraries for:
+Bu repo, BeyondTrust entegrasyonu icin hazirlanan `.NET` ve `Java` library orneklerini ve ilgili docs setini icerir.
 
-- `.NET` in [dotnet/README.md](dotnet/README.md)
-- `Java` in [java/turkcell-bt-java-lib/README.md](java/turkcell-bt-java-lib/README.md)
+## Repo Icerigi
 
-Both libraries keep the same key format contract:
+- `.NET` library ve ana docs: [dotnet/README.md](dotnet/README.md)
+- `Java` library ve ana docs: [java/turkcell-bt-java-lib/README.md](java/turkcell-bt-java-lib/README.md)
+- Build/test/package verification ozeti: [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md)
+- Raw verification output'lari: `verification/`
+
+## Key Format Contract
+
+Her iki library de ayni key formatlarini uretir:
 
 - `bt.acc.{SystemName}.{AccountName}`
 - `bt.safe.{Folder}.{Title}.password`
 - `bt.safe.{Folder}.{Title}.username`
 
-Both libraries support:
+## Desteklenen Auth Mode'lar
 
-- OAuth / App User / Client Credentials
-- Classic API authentication
-- Safe refresh semantics with last successful snapshot protection
-- Optional custom certificate content via `BEYONDTRUST_CERTIFICATE_CONTENT`
+- `OAuth / App User / Client Credentials`
+- `classic API auth`
 
-Sample environment scripts and Kubernetes manifests are provided under:
+## Docs Haritasi
 
-- `.NET`: [dotnet/examples](dotnet/examples) and [dotnet/k8s](dotnet/k8s)
-- `Java`: [java/turkcell-bt-java-lib/examples](java/turkcell-bt-java-lib/examples) and [java/turkcell-bt-java-lib/k8s](java/turkcell-bt-java-lib/k8s)
+- `.NET` kullanim adimlari icin [dotnet/USAGE.md](dotnet/USAGE.md)
+- `.NET` parametre ozeti icin [dotnet/PARAMETERS.md](dotnet/PARAMETERS.md)
+- `.NET` troubleshooting notlari icin [dotnet/TROUBLESHOOTING.md](dotnet/TROUBLESHOOTING.md)
+- `Java` kullanim adimlari icin [java/USAGE.md](java/USAGE.md)
+- `Java` parametre ozeti icin [java/turkcell-bt-java-lib/PARAMETERS.md](java/turkcell-bt-java-lib/PARAMETERS.md)
+- `Java` troubleshooting notlari icin [java/turkcell-bt-java-lib/TROUBLESHOOTING.md](java/turkcell-bt-java-lib/TROUBLESHOOTING.md)
+
+## Verification Nasil Okunur
+
+- Ozet durum icin once [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md) dosyasina bakin.
+- Her komutun raw output'unu gormek icin `verification/*.txt` file'larini acin.
+- `BUILD_VERIFICATION.md` icindeki tum log referanslari `verification/` altindaki gercek file'larla birebir eslesir.
