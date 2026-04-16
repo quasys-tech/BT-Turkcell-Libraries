@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Turkcell.BT.Dotnet.Lib\Turkcell.BT.Dotnet.Lib.csproj" />
+    <ProjectReference Include="..\..\samples\Turkcell.BT.Dotnet.Demo\Turkcell.BT.Dotnet.Demo.csproj" />
   </ItemGroup>
 
 </Project>

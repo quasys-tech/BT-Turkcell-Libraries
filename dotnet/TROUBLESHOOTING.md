@@ -46,7 +46,8 @@
 
 - `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, and `BT_EXAMPLE_SAFE_USERNAME` are demo-only helper parameters.
 - Set them to existing `bt.*` keys, for example `bt.acc.SampleSystem.SampleAccount` or `bt.safe.SampleFolder.SampleTitle.password`.
-- If they are absent, the demo falls back to the first matching loaded key.
+- If a helper parameter is absent, the demo prints a skip message for that specific sample output.
+- If a helper parameter points to a key that was not loaded, the demo prints `Demo example key not found: <key>`.
 
 ## Configuration Load Expectation
 

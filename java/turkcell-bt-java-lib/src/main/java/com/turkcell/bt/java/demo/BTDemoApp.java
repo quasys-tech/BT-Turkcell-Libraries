@@ -4,9 +4,9 @@ import com.turkcell.bt.java.BeyondTrustConfigurationManager;
 import com.turkcell.bt.java.BeyondTrustOptions;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 public final class BTDemoApp {
@@ -39,7 +39,7 @@ public final class BTDemoApp {
                     System.out.println();
                     System.out.println("[" + java.time.LocalTime.now().withNano(0) + "] Snapshot updated. " + snapshot.size() + " BeyondTrust key(s) loaded.");
                     printAllKeys(snapshot);
-                    printSampleValues(options, manager, snapshot);
+                    printSampleValues(snapshot);
                     previousSnapshotHash = currentSnapshotHash;
                 }
 
@@ -76,42 +76,55 @@ public final class BTDemoApp {
         System.out.println("------------------------");
     }
 
-    private static void printSampleValues(
-            BeyondTrustOptions options,
-            BeyondTrustConfigurationManager manager,
-            List<Map.Entry<Object, Object>> snapshot) {
+    private static void printSampleValues(List<Map.Entry<Object, Object>> snapshot) {
+        Map<String, String> snapshotMap = snapshot.stream()
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString(),
+                        entry -> entry.getValue() == null ? null : entry.getValue().toString(),
+                        (left, right) -> right,
+                        LinkedHashMap::new));
 
-        String sampleManagedAccountKey = resolveExampleKey("BT_EXAMPLE_ACCOUNT", snapshot, "bt.acc.", null);
-        String sampleSecretSafeKey = resolveExampleKey("BT_EXAMPLE_SAFE_PASSWORD", snapshot, "bt.safe.", ".password");
-
-        if (sampleManagedAccountKey != null) {
-            System.out.println("Managed Account Sample (" + sampleManagedAccountKey + ") = " + manager.getProperty(sampleManagedAccountKey));
-        }
-
-        if (sampleSecretSafeKey != null) {
-            System.out.println("Secret Safe Password Sample (" + sampleSecretSafeKey + ") = " + manager.getProperty(sampleSecretSafeKey));
+        for (String line : buildExampleOutputLines(
+                snapshotMap,
+                firstConfiguredValue("BT_EXAMPLE_ACCOUNT"),
+                firstConfiguredValue("BT_EXAMPLE_SAFE_PASSWORD"),
+                firstConfiguredValue("BT_EXAMPLE_SAFE_USERNAME"))) {
+            System.out.println(line);
         }
     }
 
-    private static String resolveExampleKey(
-            String propertyName,
-            List<Map.Entry<Object, Object>> snapshot,
-            String prefix,
-            String suffix) {
+    static List<String> buildExampleOutputLines(
+            Map<String, String> snapshot,
+            String exampleAccountKey,
+            String exampleSafePasswordKey,
+            String exampleSafeUsernameKey) {
 
-        String configuredValue = firstConfiguredValue(propertyName);
-        if (configuredValue != null && !configuredValue.isBlank()) {
-            return configuredValue;
+        List<String> lines = new java.util.ArrayList<>();
+        appendExampleOutput(lines, snapshot, "BT_EXAMPLE_ACCOUNT", "example account", "Managed Account Sample", exampleAccountKey);
+        appendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_PASSWORD", "example password", "Secret Safe Password Sample", exampleSafePasswordKey);
+        appendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_USERNAME", "example username", "Secret Safe Username Sample", exampleSafeUsernameKey);
+        return lines;
+    }
+
+    private static void appendExampleOutput(
+            List<String> lines,
+            Map<String, String> snapshot,
+            String parameterName,
+            String friendlyName,
+            String sampleLabel,
+            String configuredKey) {
+
+        if (configuredKey == null || configuredKey.isBlank()) {
+            lines.add(parameterName + " not set; skipping " + friendlyName + " output");
+            return;
         }
 
-        for (Map.Entry<Object, Object> entry : snapshot) {
-            String key = entry.getKey().toString();
-            if (key.startsWith(prefix) && (suffix == null || key.endsWith(suffix))) {
-                return key;
-            }
+        if (!snapshot.containsKey(configuredKey)) {
+            lines.add("Demo example key not found: " + configuredKey);
+            return;
         }
 
-        return null;
+        lines.add(sampleLabel + " (" + configuredKey + ") = " + snapshot.get(configuredKey));
     }
 
     private static String firstConfiguredValue(String key) {

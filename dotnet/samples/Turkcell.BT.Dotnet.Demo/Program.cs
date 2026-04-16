@@ -110,21 +110,59 @@ static void PrintAllKeys(IReadOnlyList<KeyValuePair<string, string?>> snapshot)
 
 static void PrintSampleValues(IConfiguration configuration, IReadOnlyList<KeyValuePair<string, string?>> snapshot)
 {
-    var sampleManagedAccountKey = configuration["BT_EXAMPLE_ACCOUNT"] ??
-                                  snapshot.FirstOrDefault(pair => pair.Key.StartsWith("bt.acc.", StringComparison.OrdinalIgnoreCase)).Key;
+    var snapshotMap = snapshot.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    var lines = DemoExampleOutput.BuildExampleOutputLines(
+        snapshotMap,
+        configuration["BT_EXAMPLE_ACCOUNT"],
+        configuration["BT_EXAMPLE_SAFE_PASSWORD"],
+        configuration["BT_EXAMPLE_SAFE_USERNAME"]);
 
-    var sampleSecretSafeKey = configuration["BT_EXAMPLE_SAFE_PASSWORD"] ??
-                              snapshot.FirstOrDefault(pair =>
-                                  pair.Key.StartsWith("bt.safe.", StringComparison.OrdinalIgnoreCase) &&
-                                  pair.Key.EndsWith(".password", StringComparison.OrdinalIgnoreCase)).Key;
-
-    if (!string.IsNullOrWhiteSpace(sampleManagedAccountKey))
+    foreach (var line in lines)
     {
-        Console.WriteLine($"Managed Account Sample ({sampleManagedAccountKey}) = {configuration[sampleManagedAccountKey]}");
+        Console.WriteLine(line);
     }
+}
 
-    if (!string.IsNullOrWhiteSpace(sampleSecretSafeKey))
+namespace Turkcell.BT.Dotnet.Demo
+{
+    public static class DemoExampleOutput
     {
-        Console.WriteLine($"Secret Safe Password Sample ({sampleSecretSafeKey}) = {configuration[sampleSecretSafeKey]}");
+        public static IReadOnlyList<string> BuildExampleOutputLines(
+            IReadOnlyDictionary<string, string?> snapshot,
+            string? exampleAccountKey,
+            string? exampleSafePasswordKey,
+            string? exampleSafeUsernameKey)
+        {
+            var lines = new List<string>();
+
+            AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_ACCOUNT", "example account", "Managed Account Sample", exampleAccountKey);
+            AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_PASSWORD", "example password", "Secret Safe Password Sample", exampleSafePasswordKey);
+            AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_USERNAME", "example username", "Secret Safe Username Sample", exampleSafeUsernameKey);
+
+            return lines;
+        }
+
+        private static void AppendExampleOutput(
+            ICollection<string> lines,
+            IReadOnlyDictionary<string, string?> snapshot,
+            string parameterName,
+            string friendlyName,
+            string sampleLabel,
+            string? configuredKey)
+        {
+            if (string.IsNullOrWhiteSpace(configuredKey))
+            {
+                lines.Add($"{parameterName} not set; skipping {friendlyName} output");
+                return;
+            }
+
+            if (!snapshot.TryGetValue(configuredKey, out var value))
+            {
+                lines.Add($"Demo example key not found: {configuredKey}");
+                return;
+            }
+
+            lines.Add($"{sampleLabel} ({configuredKey}) = {value}");
+        }
     }
 }

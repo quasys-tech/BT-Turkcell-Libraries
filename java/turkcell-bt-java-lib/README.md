@@ -29,7 +29,7 @@ Notes:
 - `BT_REFRESH_TIME` is accepted only as a backward-compatible alias when `BEYONDTRUST_REFRESH_INTERVAL` is absent.
 - `BEYONDTRUST_ALL_SECRETS_ENABLED` is accepted for compatibility, but Secret Safe loading still uses `BEYONDTRUST_SECRET_SAFE_PATHS`.
 - Demo applications intentionally print raw secret values. Do not copy that logging style into production code.
-- Demo-only helper parameters:
+- Demo-only helper parameters choose which raw demo values are highlighted:
   `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
   `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
   `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`

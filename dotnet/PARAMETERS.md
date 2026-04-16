@@ -24,6 +24,6 @@ These parameters are for the demo application only. They are not library core se
 
 | Parameter | Required | Mode | Default | Description | Example |
 | --- | --- | --- | --- | --- | --- |
-| `BT_EXAMPLE_ACCOUNT` | No | Demo only | First matching `bt.acc.*` key | Selects the managed account key that the demo highlights in raw output. | `bt.acc.SampleSystem.SampleAccount` |
-| `BT_EXAMPLE_SAFE_PASSWORD` | No | Demo only | First matching `bt.safe.*.password` key | Selects the Secret Safe password key that the demo highlights in raw output. | `bt.safe.SampleFolder.SampleTitle.password` |
-| `BT_EXAMPLE_SAFE_USERNAME` | No | Demo only | Matching `bt.safe.*.username` key from the loaded snapshot | Documents the demo's username companion key for the same Secret Safe entry. | `bt.safe.SampleFolder.SampleTitle.username` |
+| `BT_EXAMPLE_ACCOUNT` | No | Demo only | Not set | Selects the managed account key that the demo raw-logs. | `bt.acc.SampleSystem.SampleAccount` |
+| `BT_EXAMPLE_SAFE_PASSWORD` | No | Demo only | Not set | Selects the Secret Safe password key that the demo raw-logs. | `bt.safe.SampleFolder.SampleTitle.password` |
+| `BT_EXAMPLE_SAFE_USERNAME` | No | Demo only | Not set | Selects the Secret Safe username key that the demo raw-logs. | `bt.safe.SampleFolder.SampleTitle.username` |

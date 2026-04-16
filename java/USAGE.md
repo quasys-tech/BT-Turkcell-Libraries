@@ -72,7 +72,7 @@ The main demo app:
 - supports both auth modes
 - requires `BEYONDTRUST_USE_APP_USER` to be explicitly set in every enabled sample
 - prints all loaded `bt.*` keys
-- prints one managed account value and one Secret Safe password value as raw output
+- raw-logs the configured example managed account, Secret Safe password, and Secret Safe username keys
 - accepts demo-only helper parameters to choose sample keys:
   `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD`, `BT_EXAMPLE_SAFE_USERNAME`
 
@@ -88,6 +88,8 @@ Demo helper examples:
 - `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
 - `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
 - `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
+- If one of these parameters is missing, the demo prints a skip message for that specific output.
+- If one of these parameters points to a key that is not loaded, the demo prints `Demo example key not found: <key>`.
 
 ## OAuth Scenario
 
