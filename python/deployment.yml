@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-python-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-python-demo
+  template:
+    metadata:
+      labels:
+        app: bt-python-demo
+    spec:
+      containers:
+        - name: bt-python-demo
+          image: ghcr.io/example/bt-python-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-python-demo-config
+            - secretRef:
+                name: bt-python-demo-secret

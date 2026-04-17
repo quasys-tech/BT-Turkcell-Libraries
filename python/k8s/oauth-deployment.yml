@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-python-oauth-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-python-oauth-demo
+  template:
+    metadata:
+      labels:
+        app: bt-python-oauth-demo
+    spec:
+      containers:
+        - name: bt-python-oauth-demo
+          image: ghcr.io/example/bt-python-demo:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: bt-python-oauth-config
+            - secretRef:
+                name: bt-python-oauth-secret

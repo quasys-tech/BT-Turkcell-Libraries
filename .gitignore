@@ -12,6 +12,15 @@
 .project
 .settings/
 
+# Python
+**/__pycache__/
+**/.pytest_cache/
+.venv/
+**/dist/
+**/build/
+**/*.egg-info/
+.mypy_cache/
+
 # OS / editor
 .DS_Store
 Thumbs.db
