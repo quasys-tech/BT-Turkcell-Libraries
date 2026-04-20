@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: secrets-cache-service
+  namespace: beyondtrust
+spec:
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8443
+  selector:
+    app: beyondtrust-secrets-cache
