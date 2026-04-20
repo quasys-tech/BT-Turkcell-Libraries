@@ -20,6 +20,7 @@ dev = [
 
 [project.scripts]
 turkcell-bt-demo = "turkcell_bt_python.demo_app:main"
+turkcell-bt-poc = "turkcell_bt_python.poc:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

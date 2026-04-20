@@ -2,9 +2,9 @@ FROM registry.redhat.io/ubi8/ubi
 
 RUN dnf install -y rpm openssl net-tools curl  && dnf clean all
 
-COPY beyondtrust-secrets-cache-24.3.16-1.el8.x86_64.rpm /tmp/
+COPY beyondtrust-secrets-cache-25.1.38-1.el8.x86_64.rpm /tmp/
 
-RUN rpm -i /tmp/beyondtrust-secrets-cache-24.3.16-1.el8.x86_64.rpm
+RUN rpm -i /tmp/beyondtrust-secrets-cache-25.1.38-1.el8.x86_64.rpm
 
 WORKDIR /opt/pbps
 

@@ -1,23 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bt-python-oauth-demo
+  name: bt-python-demo-oauth
+  namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bt-python-oauth-demo
+      app: bt-python-demo-oauth
   template:
     metadata:
       labels:
-        app: bt-python-oauth-demo
+        app: bt-python-demo-oauth
     spec:
       containers:
-        - name: bt-python-oauth-demo
-          image: ghcr.io/example/bt-python-demo:latest
+        - name: bt-python-demo-oauth
+          image: docker.io/enespekdas/btpython-lib:v1.0
           imagePullPolicy: IfNotPresent
           envFrom:
-            - configMapRef:
-                name: bt-python-oauth-config
             - secretRef:
-                name: bt-python-oauth-secret
+                name: bt-python-demo-oauth-secret

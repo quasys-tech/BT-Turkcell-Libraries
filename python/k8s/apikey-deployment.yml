@@ -1,23 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bt-python-apikey-demo
+  name: bt-java-demo-apikey
+  namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bt-python-apikey-demo
+      app: bt-java-demo-apikey
   template:
     metadata:
       labels:
-        app: bt-python-apikey-demo
+        app: bt-java-demo-apikey
     spec:
       containers:
-        - name: bt-python-apikey-demo
-          image: ghcr.io/example/bt-python-demo:latest
+        - name: bt-java-demo-apikey
+          image: docker.io/enespekdas/btjava-lib:v1.0
           imagePullPolicy: IfNotPresent
           envFrom:
-            - configMapRef:
-                name: bt-python-apikey-config
             - secretRef:
-                name: bt-python-apikey-secret
+                name: bt-java-demo-apikey-secret

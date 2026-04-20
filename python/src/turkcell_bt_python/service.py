@@ -77,6 +77,9 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
         self._verify: bool | str = True
         self._certificate_file_path: str | None = None
         self._access_token: str | None = None
+        self._debug_enabled = (os.getenv("BEYONDTRUST_DEBUG") or "").strip().lower() == "true"
+        if hasattr(self._session, "trust_env"):
+            self._session.trust_env = False
         self._configure_tls()
 
     def __enter__(self) -> "BeyondTrustService":
@@ -97,6 +100,16 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
         snapshot: dict[str, str] = {}
 
         try:
+            if self._debug_enabled:
+                print(
+                    "[BeyondTrust][DEBUG] FetchAllSecrets started. "
+                    f"Auth mode: {'OAuth App User' if self._options.use_app_user else 'Classic API'}, "
+                    f"Managed accounts enabled: {self._options.all_managed_accounts_enabled}, "
+                    f"Managed account list: {self._options.managed_accounts or '<empty>'}, "
+                    f"Secret Safe paths: {self._options.secret_safe_paths or '<empty>'}, "
+                    f"ApiUrl: {self._options.api_url}"
+                )
+
             self._authenticate()
 
             if self._options.all_managed_accounts_enabled or _has_value(self._options.managed_accounts):
@@ -116,6 +129,12 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
             raise RuntimeError(f"BeyondTrust secret loading failed: {exc}") from exc
 
     def _authenticate(self) -> None:
+        if self._debug_enabled:
+            print(
+                f"[BeyondTrust][DEBUG] Starting authentication using "
+                f"{'OAuth App User' if self._options.use_app_user else 'Classic API'} mode."
+            )
+
         if self._options.use_app_user:
             self._login_with_oauth()
             return
@@ -125,7 +144,8 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
     def _login_with_oauth(self) -> None:
         self._access_token = None
 
-        response = self._request(
+        response = self._send_request(
+            "Auth/Connect/Token",
             "POST",
             "Auth/Connect/Token",
             headers={"Authorization": "PS-Auth"},
@@ -151,10 +171,19 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
             raise RuntimeError("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.")
 
         self._access_token = None
-        self._post_sign_appin()
+        if self._debug_enabled:
+            print(
+                f"[BeyondTrust][DEBUG] Classic API key parsed. RunAs present: {bool(parsed.run_as_user and parsed.run_as_user.strip())}"
+            )
+
+        try:
+            self._post_sign_appin()
+        except Exception as exc:
+            print(f"[BeyondTrust] Auth/SignAppin failed in Classic API mode, continuing without it: {exc}")
 
     def _post_sign_appin(self) -> None:
-        response = self._request(
+        response = self._send_request(
+            "Auth/SignAppin",
             "POST",
             "Auth/SignAppin",
             headers=self._authorization_headers(),
@@ -163,7 +192,7 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
         _ensure_success(response.status_code, "Auth/SignAppin")
 
     def _process_managed_accounts(self, snapshot: dict[str, str]) -> None:
-        response = self._request("GET", "ManagedAccounts", headers=self._authorization_headers())
+        response = self._send_request("ManagedAccounts", "GET", "ManagedAccounts", headers=self._authorization_headers())
         _ensure_success(response.status_code, "ManagedAccounts")
 
         payload = response.json()
@@ -180,7 +209,8 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
 
     def _process_secret_safe(self, snapshot: dict[str, str]) -> None:
         for path in _split_values(self._options.secret_safe_paths):
-            response = self._request(
+            response = self._send_request(
+                f"Secrets-Safe/Secrets?Path={path}",
                 "GET",
                 f"Secrets-Safe/Secrets?Path={quote(path, safe='')}",
                 headers=self._authorization_headers(),
@@ -211,7 +241,8 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
         request_id = ""
 
         try:
-            response = self._request(
+            response = self._send_request(
+                "Requests (create)",
                 "POST",
                 "Requests",
                 headers=self._authorization_headers(),
@@ -234,7 +265,8 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
                 raise RuntimeError("Request ID could not be resolved for the managed account credential flow.")
 
             for attempt in range(5):
-                credential_response = self._request(
+                credential_response = self._send_request(
+                    f"Credentials/{request_id}",
                     "GET",
                     f"Credentials/{quote(request_id, safe='')}",
                     headers=self._authorization_headers(),
@@ -251,7 +283,8 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
 
     def _try_check_in(self, request_id: str) -> None:
         try:
-            response = self._request(
+            response = self._send_request(
+                f"Requests/{request_id}/Checkin",
                 "PUT",
                 f"Requests/{quote(request_id, safe='')}/Checkin",
                 headers=self._authorization_headers(),
@@ -264,7 +297,7 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
             print(f"[BeyondTrust] Check-in failed for RequestID '{request_id}': {exc}")
 
     def _find_existing_request_id(self, system_id: int, account_id: int) -> str:
-        response = self._request("GET", "Requests", headers=self._authorization_headers())
+        response = self._send_request("Requests (lookup)", "GET", "Requests", headers=self._authorization_headers())
         _ensure_success(response.status_code, "Requests lookup")
 
         payload = response.json()
@@ -318,6 +351,30 @@ class BeyondTrustService(AbstractContextManager["BeyondTrustService"]):
             raise RuntimeError("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.")
 
         return {"Authorization": parsed.to_authorization_header()}
+
+    def _send_request(self, operation_name: str, method: str, path: str, **kwargs: Any) -> requests.Response:
+        started_at = time.monotonic()
+        if self._debug_enabled:
+            print(f"[BeyondTrust][DEBUG] Starting {operation_name}")
+
+        try:
+            response = self._request(method, path, **kwargs)
+        except requests.Timeout as exc:
+            if self._debug_enabled:
+                elapsed_ms = int((time.monotonic() - started_at) * 1000)
+                print(f"[BeyondTrust][DEBUG] {operation_name} timed out after {elapsed_ms} ms")
+            raise RuntimeError(f"{operation_name} timed out after {self.REQUEST_TIMEOUT_SECONDS} seconds.") from exc
+        except requests.RequestException as exc:
+            if self._debug_enabled:
+                elapsed_ms = int((time.monotonic() - started_at) * 1000)
+                print(f"[BeyondTrust][DEBUG] {operation_name} failed after {elapsed_ms} ms: {exc}")
+            raise RuntimeError(f"{operation_name} failed: {exc}") from exc
+
+        if self._debug_enabled:
+            elapsed_ms = int((time.monotonic() - started_at) * 1000)
+            print(f"[BeyondTrust][DEBUG] Completed {operation_name} with status {response.status_code} in {elapsed_ms} ms")
+
+        return response
 
     def _request(self, method: str, path: str, **kwargs: Any) -> requests.Response:
         headers = dict(kwargs.pop("headers", {}))

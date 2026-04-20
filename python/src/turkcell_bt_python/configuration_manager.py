@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import os
 from contextlib import AbstractContextManager
 from types import MappingProxyType
 from typing import Callable, Mapping
@@ -25,6 +26,7 @@ class BeyondTrustConfigurationManager(AbstractContextManager["BeyondTrustConfigu
         self._reload_lock = threading.Lock()
         self._stop_event = threading.Event()
         self._refresh_thread: threading.Thread | None = None
+        self._debug_enabled = (os.getenv("BEYONDTRUST_DEBUG") or "").strip().lower() == "true"
 
     @classmethod
     def create_and_load(
@@ -52,6 +54,16 @@ class BeyondTrustConfigurationManager(AbstractContextManager["BeyondTrustConfigu
             for missing_setting in missing_settings:
                 print(f"[BeyondTrust] Missing setting: {missing_setting}")
             raise ValueError("Required settings are missing: " + ", ".join(missing_settings))
+
+        if self._debug_enabled:
+            print(
+                "[BeyondTrust][DEBUG] Manager load started. "
+                f"Auth mode: {'OAuth App User' if self._options.use_app_user else 'Classic API'}, "
+                f"Refresh interval: {self._options.refresh_interval_seconds}s, "
+                f"Managed accounts: {self._options.managed_accounts or '<empty>'}, "
+                f"All managed accounts enabled: {self._options.all_managed_accounts_enabled}, "
+                f"Secret Safe paths: {self._options.secret_safe_paths or '<empty>'}"
+            )
 
         with self._reload_lock:
             snapshot = self._load_snapshot("Initial load")
@@ -118,6 +130,9 @@ class BeyondTrustConfigurationManager(AbstractContextManager["BeyondTrustConfigu
 
     def _refresh_internal(self) -> None:
         with self._reload_lock:
+            if self._debug_enabled:
+                print("[BeyondTrust][DEBUG] Refresh cycle started.")
+
             previous_snapshot = dict(self._snapshot)
             try:
                 snapshot = self._load_snapshot("Refresh")
@@ -126,16 +141,22 @@ class BeyondTrustConfigurationManager(AbstractContextManager["BeyondTrustConfigu
                 return
 
             if previous_snapshot == snapshot:
-                print("[BeyondTrust] Refresh completed with no snapshot changes.")
+                if self._debug_enabled:
+                    print("[BeyondTrust][DEBUG] Refresh completed with no snapshot changes.")
                 return
 
             self._swap_snapshot(snapshot)
-            print(f"[BeyondTrust] Refresh completed. Loaded {len(snapshot)} key(s).")
+
+            if self._debug_enabled:
+                print(f"[BeyondTrust][DEBUG] Refresh applied. Loaded {len(snapshot)} key(s).")
 
     def _load_snapshot(self, operation: str) -> dict[str, str]:
         try:
             loaded_snapshot = self._snapshot_loader() or {}
-            return dict(loaded_snapshot)
+            snapshot = dict(loaded_snapshot)
+            if self._debug_enabled:
+                print(f"[BeyondTrust][DEBUG] {operation} snapshot load succeeded with {len(snapshot)} key(s).")
+            return snapshot
         except Exception as exc:
             print(f"[BeyondTrust] {operation} failed: {exc}")
             raise RuntimeError(f"{operation} failed: {exc}") from exc

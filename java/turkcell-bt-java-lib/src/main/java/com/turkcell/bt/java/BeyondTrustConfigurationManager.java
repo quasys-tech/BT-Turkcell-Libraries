@@ -124,16 +124,8 @@ public class BeyondTrustConfigurationManager implements AutoCloseable {
 
     private void refreshInternal() {
         synchronized (reloadLock) {
-            Map<String, String> previousSnapshot = snapshot.get();
             if (!loadSnapshot("Refresh")) {
                 System.out.println("[BeyondTrust] Refresh failed. Keeping the last successful snapshot.");
-                return;
-            }
-
-            if (previousSnapshot.equals(snapshot.get())) {
-                System.out.println("[BeyondTrust] Refresh completed with no snapshot changes.");
-            } else {
-                System.out.println("[BeyondTrust] Refresh completed. Loaded " + snapshot.get().size() + " key(s).");
             }
         }
     }

@@ -1,23 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bt-dotnet-oauth-demo
+  name: bt-java-demo-oauth
+  namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bt-dotnet-oauth-demo
+      app: bt-java-demo-oauth
   template:
     metadata:
       labels:
-        app: bt-dotnet-oauth-demo
+        app: bt-java-demo-oauth
     spec:
       containers:
-        - name: bt-dotnet-oauth-demo
-          image: ghcr.io/example/bt-dotnet-demo:latest
+        - name: bt-java-demo-oauth
+          image: docker.io/enespekdas/btjava-lib:v1.5
           imagePullPolicy: IfNotPresent
           envFrom:
-            - configMapRef:
-                name: bt-dotnet-oauth-config
             - secretRef:
-                name: bt-dotnet-oauth-secret
+                name: bt-java-demo-oauth-secret

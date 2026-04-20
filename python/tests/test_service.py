@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+import requests
 
 from turkcell_bt_python.options import BeyondTrustOptions
 from turkcell_bt_python.service import BeyondTrustService, parse_credential_value, parse_request_id
@@ -117,6 +118,35 @@ def test_oauth_mode_uses_token_then_bearer_flow() -> None:
 
     assert token_request["headers"]["Authorization"] == "PS-Auth"
     assert sign_in_request["headers"]["Authorization"] == "Bearer oauth-token"
+
+
+def test_classic_api_mode_continues_when_sign_appin_times_out() -> None:
+    def router(method: str, url: str, kwargs: dict[str, object]) -> FakeResponse:
+        if url.endswith("/Auth/SignAppin"):
+            raise requests.Timeout("timed out")
+        if url.endswith("/ManagedAccounts"):
+            return FakeResponse(200, "[]")
+        raise AssertionError(f"Unexpected request: {method} {url}")
+
+    session = FakeSession(router)
+    service = BeyondTrustService(
+        BeyondTrustOptions(
+            enabled=True,
+            api_url="https://pam.example.com/BeyondTrust/api/public/v3",
+            use_app_user=False,
+            use_app_user_configured=True,
+            api_key="raw-api-key",
+            all_managed_accounts_enabled=True,
+        ),
+        session=session,
+    )
+
+    snapshot = service.fetch_all_secrets()
+    service.close()
+
+    assert snapshot == {}
+    assert any(request["url"].endswith("/Auth/SignAppin") for request in session.requests)
+    assert any(request["url"].endswith("/ManagedAccounts") for request in session.requests)
 
 
 def test_managed_account_conflict_flow_uses_exact_key_naming() -> None:

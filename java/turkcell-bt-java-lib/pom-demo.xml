@@ -50,7 +50,7 @@
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.turkcell.bt.java.demo.BTDemoApp</mainClass>
+                  <mainClass>com.turkcell.bt.java.demo.POC</mainClass>
                 </transformer>
               </transformers>
             </configuration>

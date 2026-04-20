@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: beyondtrust-secrets-cache
-  namespace: beyondtrust
+  namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
@@ -18,7 +18,7 @@ spec:
       #   node-role.kubernetes.io/infra: ""
       containers:
         - name: container
-          image: 'shield07/btsecretcache:0.1.6'
+          image: "docker.io/enespekdas/secret-cache:v1.0"
           ports:
             - containerPort: 8443
               protocol: TCP
@@ -29,7 +29,7 @@ spec:
             exec:
               command:
                 - /bin/sh
-                - '-c'
+                - "-c"
                 - grep -q 'Sync complete' /var/opt/pbps/log/pspca.log
             initialDelaySeconds: 15
             timeoutSeconds: 1

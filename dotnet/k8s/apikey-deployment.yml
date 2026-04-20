@@ -1,23 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bt-dotnet-apikey-demo
+  name: bt-dotnet-demo-apikey
+  namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bt-dotnet-apikey-demo
+      app: bt-dotnet-demo-apikey
   template:
     metadata:
       labels:
-        app: bt-dotnet-apikey-demo
+        app: bt-dotnet-demo-apikey
     spec:
       containers:
-        - name: bt-dotnet-apikey-demo
-          image: ghcr.io/example/bt-dotnet-demo:latest
+        - name: bt-dotnet-demo-apikey
+          image: docker.io/enespekdas/btdotnet-lib:v1.5
           imagePullPolicy: IfNotPresent
           envFrom:
-            - configMapRef:
-                name: bt-dotnet-apikey-config
             - secretRef:
-                name: bt-dotnet-apikey-secret
+                name: bt-dotnet-demo-apikey-secret

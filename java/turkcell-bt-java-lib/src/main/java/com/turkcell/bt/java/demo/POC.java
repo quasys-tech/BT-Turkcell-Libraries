@@ -7,25 +7,31 @@ public final class POC {
     private POC() {
     }
 
-    public static void main(String[] args) {
-        printMinimalIntegrationExample();
+    public static void main(String[] args) throws Exception {
+        String exampleAccountKey = System.getenv("BT_EXAMPLE_ACCOUNT").strip();
+        String exampleSafePasswordKey = System.getenv("BT_EXAMPLE_SAFE_PASSWORD").strip();
+        String exampleSafeUsernameKey = System.getenv("BT_EXAMPLE_SAFE_USERNAME").strip();
 
         try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad()) {
-            String managedPassword = manager.getProperty("bt.acc.<SystemName>.<AccountName>");
-            String secretPassword = manager.getProperty("bt.safe.<Folder>.<Title>.password");
+            String previousOutput = "";
 
-            System.out.println("Managed account password lookup result: " + managedPassword);
-            System.out.println("Secret safe password lookup result: " + secretPassword);
+            while (true) {
+                String currentOutput = """
+                        Managed Account Sample (%s) = %s
+                        Secret Safe Password Sample (%s) = %s
+                        Secret Safe Username Sample (%s) = %s
+                        """.formatted(
+                        exampleAccountKey, manager.getProperty(exampleAccountKey),
+                        exampleSafePasswordKey, manager.getProperty(exampleSafePasswordKey),
+                        exampleSafeUsernameKey, manager.getProperty(exampleSafeUsernameKey));
+
+                if (!currentOutput.equals(previousOutput)) {
+                    System.out.print(currentOutput);
+                    previousOutput = currentOutput;
+                }
+
+                Thread.sleep(1000);
+            }
         }
-    }
-
-    public static void printMinimalIntegrationExample() {
-        System.out.println("Minimal integration example:");
-        System.out.println("""
-                BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad();
-                String managedPassword = manager.getProperty("bt.acc.<SystemName>.<AccountName>");
-                String secretPassword = manager.getProperty("bt.safe.<Folder>.<Title>.password");
-                """);
-        System.out.println();
     }
 }

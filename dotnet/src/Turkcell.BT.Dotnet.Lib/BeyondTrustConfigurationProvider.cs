@@ -22,15 +22,19 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
     private readonly BeyondTrustOptions _options;
     private readonly Func<Task<Dictionary<string, string?>>> _snapshotLoader;
     private readonly object _syncRoot = new();
+    private readonly bool _debugEnabled = string.Equals(
+        Environment.GetEnvironmentVariable("BEYONDTRUST_DEBUG"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
     private Timer? _refreshTimer;
 
     public BeyondTrustConfigurationProvider(BeyondTrustOptions options)
         : this(
             options,
-            () =>
+            async () =>
             {
                 using var service = new BeyondTrustService(options);
-                return service.FetchAllSecretsAsync();
+                return await service.FetchAllSecretsAsync().ConfigureAwait(false);
             })
     {
     }
@@ -47,6 +51,14 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
         {
             Console.WriteLine("[BeyondTrust] Initial load skipped because the provider is disabled.");
             return;
+        }
+
+        if (_debugEnabled)
+        {
+            Console.WriteLine(
+                $"[BeyondTrust][DEBUG] Provider load started. Auth mode: {(_options.UseAppUser ? "OAuth App User" : "Classic API")}, " +
+                $"Refresh interval: {_options.RefreshIntervalSeconds}s, Managed accounts: {_options.ManagedAccounts ?? "<empty>"}, " +
+                $"All managed accounts enabled: {_options.AllManagedAccountsEnabled}, Secret Safe paths: {_options.SecretSafePaths ?? "<empty>"}");
         }
 
         lock (_syncRoot)
@@ -79,23 +91,33 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
     {
         lock (_syncRoot)
         {
+            if (_debugEnabled)
+            {
+                Console.WriteLine("[BeyondTrust][DEBUG] Refresh cycle started.");
+            }
+
             if (!TryLoadSnapshot("Refresh", out var snapshot))
             {
                 Console.WriteLine("[BeyondTrust] Refresh failed. Keeping the last successful snapshot.");
                 return;
             }
 
-            if (DictionaryEquals(
+            if (!DictionaryEquals(
                     new Dictionary<string, string?>(Data, StringComparer.OrdinalIgnoreCase),
                     snapshot))
             {
-                Console.WriteLine("[BeyondTrust] Refresh completed with no snapshot changes.");
-                return;
-            }
+                Data = snapshot;
+                OnReload();
 
-            Data = snapshot;
-            Console.WriteLine($"[BeyondTrust] Refresh completed. Loaded {snapshot.Count} key(s).");
-            OnReload();
+                if (_debugEnabled)
+                {
+                    Console.WriteLine($"[BeyondTrust][DEBUG] Refresh applied. Loaded {snapshot.Count} key(s).");
+                }
+            }
+            else if (_debugEnabled)
+            {
+                Console.WriteLine("[BeyondTrust][DEBUG] Refresh completed with no snapshot changes.");
+            }
         }
     }
 
@@ -109,6 +131,12 @@ public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposab
                                  new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
             snapshot = new Dictionary<string, string?>(loadedSnapshot, StringComparer.OrdinalIgnoreCase);
+
+            if (_debugEnabled)
+            {
+                Console.WriteLine($"[BeyondTrust][DEBUG] {operation} snapshot load succeeded with {snapshot.Count} key(s).");
+            }
+
             return true;
         }
         catch (Exception ex)

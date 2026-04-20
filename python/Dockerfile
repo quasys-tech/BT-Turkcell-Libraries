@@ -4,4 +4,4 @@ WORKDIR /app
 COPY . /app
 RUN python -m pip install --no-cache-dir .
 
-ENTRYPOINT ["turkcell-bt-demo"]
+ENTRYPOINT ["turkcell-bt-poc"]

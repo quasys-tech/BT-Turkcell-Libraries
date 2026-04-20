@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 [assembly: InternalsVisibleTo("Turkcell.BT.Dotnet.Tests")]
 
@@ -18,6 +19,11 @@ public sealed class BeyondTrustService : IDisposable
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
     private HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private string? _bearerToken;
+    private readonly bool _debugEnabled = string.Equals(
+        Environment.GetEnvironmentVariable("BEYONDTRUST_DEBUG"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
 
     public BeyondTrustService(BeyondTrustOptions options)
         : this(options, null)
@@ -34,6 +40,14 @@ public sealed class BeyondTrustService : IDisposable
     public async Task<Dictionary<string, string?>> FetchAllSecretsAsync()
     {
         var snapshot = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        if (_debugEnabled)
+        {
+            Console.WriteLine(
+                $"[BeyondTrust][DEBUG] FetchAllSecrets started. Auth mode: {(_options.UseAppUser ? "OAuth App User" : "Classic API")}, " +
+                $"Managed accounts enabled: {_options.AllManagedAccountsEnabled}, Managed account list: {_options.ManagedAccounts ?? "<empty>"}, " +
+                $"Secret Safe paths: {_options.SecretSafePaths ?? "<empty>"}, ApiUrl: {_options.ApiUrl}");
+        }
 
         await AuthenticateAsync().ConfigureAwait(false);
 
@@ -57,6 +71,11 @@ public sealed class BeyondTrustService : IDisposable
 
     private async Task AuthenticateAsync()
     {
+        if (_debugEnabled)
+        {
+            Console.WriteLine($"[BeyondTrust][DEBUG] Starting authentication using {(_options.UseAppUser ? "OAuth App User" : "Classic API")} mode.");
+        }
+
         if (_options.UseAppUser)
         {
             await LoginWithOAuthAsync().ConfigureAwait(false);
@@ -68,18 +87,21 @@ public sealed class BeyondTrustService : IDisposable
 
     private async Task LoginWithOAuthAsync()
     {
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "PS-Auth");
+        using var tokenRequest = new HttpRequestMessage(HttpMethod.Post, BuildUri("Auth/Connect/Token"))
+        {
+            Version = HttpVersion.Version11,
+            VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = _options.ClientId ?? string.Empty,
+                ["client_secret"] = _options.ClientSecret ?? string.Empty
+            })
+        };
+        tokenRequest.Headers.ExpectContinue = false;
+        tokenRequest.Headers.Authorization = new AuthenticationHeaderValue("PS-Auth");
 
-        var tokenResponse = await _httpClient.PostAsync(
-                "Auth/Connect/Token",
-                new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    ["grant_type"] = "client_credentials",
-                    ["client_id"] = _options.ClientId ?? string.Empty,
-                    ["client_secret"] = _options.ClientSecret ?? string.Empty
-                }))
-            .ConfigureAwait(false);
+        var tokenResponse = await ExecuteHttpAsync("Auth/Connect/Token", () => _httpClient.SendAsync(tokenRequest)).ConfigureAwait(false);
 
         if (!tokenResponse.IsSuccessStatusCode)
         {
@@ -95,8 +117,7 @@ public sealed class BeyondTrustService : IDisposable
             throw new InvalidOperationException("OAuth token response did not contain access_token.");
         }
 
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        _bearerToken = accessToken;
 
         await PostSignAppInAsync().ConfigureAwait(false);
     }
@@ -108,20 +129,26 @@ public sealed class BeyondTrustService : IDisposable
             throw new InvalidOperationException("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.");
         }
 
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation(
-            "Authorization",
-            parsedApiKey!.ToAuthorizationHeader());
+        if (_debugEnabled)
+        {
+            Console.WriteLine(
+                $"[BeyondTrust][DEBUG] Classic API key parsed. RunAs present: {!string.IsNullOrWhiteSpace(parsedApiKey?.RunAsUser)}");
+        }
 
-        await PostSignAppInAsync().ConfigureAwait(false);
+        try
+        {
+            await PostSignAppInAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BeyondTrust] Auth/SignAppin failed in Classic API mode, continuing without it: {ex.Message}");
+        }
     }
 
     private async Task PostSignAppInAsync()
     {
-        var response = await _httpClient.PostAsync(
-                "Auth/SignAppin",
-                new StringContent("{}", Encoding.UTF8, "application/json"))
-            .ConfigureAwait(false);
+        using var request = CreateRequest(HttpMethod.Post, "Auth/SignAppin", CreateJsonContent("{}"));
+        var response = await ExecuteHttpAsync("Auth/SignAppin", () => _httpClient.SendAsync(request)).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -131,7 +158,8 @@ public sealed class BeyondTrustService : IDisposable
 
     private async Task ProcessManagedAccountsAsync(IDictionary<string, string?> snapshot)
     {
-        var response = await _httpClient.GetAsync("ManagedAccounts").ConfigureAwait(false);
+        using var request = CreateRequest(HttpMethod.Get, "ManagedAccounts");
+        var response = await ExecuteHttpAsync("ManagedAccounts", () => _httpClient.SendAsync(request)).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"ManagedAccounts request failed with status {(int)response.StatusCode}.");
@@ -153,7 +181,8 @@ public sealed class BeyondTrustService : IDisposable
     {
         foreach (var path in SplitValues(_options.SecretSafePaths))
         {
-            var response = await _httpClient.GetAsync($"Secrets-Safe/Secrets?Path={Uri.EscapeDataString(path)}").ConfigureAwait(false);
+            using var request = CreateRequest(HttpMethod.Get, $"Secrets-Safe/Secrets?Path={Uri.EscapeDataString(path)}");
+            var response = await ExecuteHttpAsync($"Secrets-Safe/Secrets?Path={path}", () => _httpClient.SendAsync(request)).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException($"Secrets-Safe request for path '{path}' failed with status {(int)response.StatusCode}.");
@@ -196,10 +225,8 @@ public sealed class BeyondTrustService : IDisposable
                 reason = "TurkcellAutoFetch"
             });
 
-            var createResponse = await _httpClient.PostAsync(
-                    "Requests",
-                    new StringContent(requestPayload, Encoding.UTF8, "application/json"))
-                .ConfigureAwait(false);
+            using var createRequest = CreateRequest(HttpMethod.Post, "Requests", CreateJsonContent(requestPayload));
+            var createResponse = await ExecuteHttpAsync("Requests (create)", () => _httpClient.SendAsync(createRequest)).ConfigureAwait(false);
 
             if (createResponse.IsSuccessStatusCode)
             {
@@ -222,7 +249,8 @@ public sealed class BeyondTrustService : IDisposable
 
             for (var attempt = 0; attempt < 5; attempt++)
             {
-                var credentialResponse = await _httpClient.GetAsync($"Credentials/{Uri.EscapeDataString(requestId)}").ConfigureAwait(false);
+                using var credentialRequest = CreateRequest(HttpMethod.Get, $"Credentials/{Uri.EscapeDataString(requestId)}");
+                var credentialResponse = await ExecuteHttpAsync($"Credentials/{requestId}", () => _httpClient.SendAsync(credentialRequest)).ConfigureAwait(false);
                 if (credentialResponse.IsSuccessStatusCode)
                 {
                     var credentialPayload = await credentialResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -247,10 +275,8 @@ public sealed class BeyondTrustService : IDisposable
     {
         try
         {
-            var response = await _httpClient.PutAsync(
-                    $"Requests/{Uri.EscapeDataString(requestId)}/Checkin",
-                    new StringContent("{\"reason\":\"Done\"}", Encoding.UTF8, "application/json"))
-                .ConfigureAwait(false);
+            using var request = CreateRequest(HttpMethod.Put, $"Requests/{Uri.EscapeDataString(requestId)}/Checkin", CreateJsonContent("{\"reason\":\"Done\"}"));
+            var response = await ExecuteHttpAsync($"Requests/{requestId}/Checkin", () => _httpClient.SendAsync(request)).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -265,7 +291,8 @@ public sealed class BeyondTrustService : IDisposable
 
     private async Task<string> FindExistingRequestIdAsync(int systemId, int accountId)
     {
-        var response = await _httpClient.GetAsync("Requests").ConfigureAwait(false);
+        using var request = CreateRequest(HttpMethod.Get, "Requests");
+        var response = await ExecuteHttpAsync("Requests (lookup)", () => _httpClient.SendAsync(request)).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"Requests lookup failed with status {(int)response.StatusCode}.");
@@ -440,7 +467,9 @@ public sealed class BeyondTrustService : IDisposable
         return new HttpClient(handler)
         {
             BaseAddress = new Uri(NormalizeBaseUrl(options.ApiUrl)),
-            Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds)
+            Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds),
+            DefaultRequestVersion = HttpVersion.Version11,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
         };
     }
 
@@ -448,7 +477,11 @@ public sealed class BeyondTrustService : IDisposable
     {
         var handler = new HttpClientHandler
         {
-            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            UseProxy = false,
+            UseCookies = true,
+            CookieContainer = new CookieContainer(),
+            AllowAutoRedirect = false
         };
 
         if (options.IgnoreSslErrors)
@@ -558,6 +591,91 @@ public sealed class BeyondTrustService : IDisposable
         }
 
         return $"{apiUrl.TrimEnd('/')}/";
+    }
+
+    private Uri BuildUri(string path)
+    {
+        return new Uri($"{NormalizeBaseUrl(_options.ApiUrl)}{path}");
+    }
+
+    private HttpRequestMessage CreateRequest(HttpMethod method, string path, HttpContent? content = null)
+    {
+        var request = new HttpRequestMessage(method, BuildUri(path))
+        {
+            Version = HttpVersion.Version11,
+            VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            Content = content
+        };
+        request.Headers.ExpectContinue = false;
+
+        if (_options.UseAppUser)
+        {
+            if (!string.IsNullOrWhiteSpace(_bearerToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _bearerToken);
+            }
+
+            return request;
+        }
+
+        if (!BeyondTrustAuthParsing.TryParseApiKey(_options.ApiKey, _options.RunAsUser, out var parsedApiKey))
+        {
+            throw new InvalidOperationException("Classic API authentication requires a valid BEYONDTRUST_API_KEY value.");
+        }
+
+        var authParameter = string.IsNullOrWhiteSpace(parsedApiKey!.RunAsUser)
+            ? $"key={parsedApiKey.Key};"
+            : $"key={parsedApiKey.Key}; runas={parsedApiKey.RunAsUser};";
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("PS-Auth", authParameter);
+        return request;
+    }
+
+    private static HttpContent CreateJsonContent(string payload)
+    {
+        var content = new StringContent(payload, Encoding.UTF8);
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+        return content;
+    }
+
+    private async Task<HttpResponseMessage> ExecuteHttpAsync(
+        string operationName,
+        Func<Task<HttpResponseMessage>> request)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        if (_debugEnabled)
+        {
+            Console.WriteLine($"[BeyondTrust][DEBUG] Starting {operationName}");
+        }
+
+        try
+        {
+            var response = await request().ConfigureAwait(false);
+            if (_debugEnabled)
+            {
+                Console.WriteLine($"[BeyondTrust][DEBUG] Completed {operationName} with status {(int)response.StatusCode} in {stopwatch.ElapsedMilliseconds} ms");
+            }
+
+            return response;
+        }
+        catch (TaskCanceledException ex)
+        {
+            if (_debugEnabled)
+            {
+                Console.WriteLine($"[BeyondTrust][DEBUG] {operationName} timed out after {stopwatch.ElapsedMilliseconds} ms");
+            }
+
+            throw new InvalidOperationException($"{operationName} timed out after {RequestTimeoutSeconds} seconds.", ex);
+        }
+        catch (Exception ex)
+        {
+            if (_debugEnabled)
+            {
+                Console.WriteLine($"[BeyondTrust][DEBUG] {operationName} failed after {stopwatch.ElapsedMilliseconds} ms: {ex.Message}");
+            }
+
+            throw;
+        }
     }
 
     public void Dispose()

@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: secrets-cache-service
-  namespace: beyondtrust
+  namespace: bt-turkcell
 spec:
   ports:
     - protocol: TCP
