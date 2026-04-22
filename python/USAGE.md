@@ -1,120 +1,79 @@
 # Python Usage
 
-## Package Install
+## Önerilen Entegrasyon Akışı
 
-Editable install örneği:
+1. Package'i Artifactory üzerindeki PyPI repository'sinden kurun.
+2. Uygulama başlangıcında BeyondTrust environment variable'larını verin.
+3. `BeyondTrustConfigurationManager.create_and_load()` ile manager'ı oluşturun.
+4. Uygulama içinde canonical `bt.*` key'leri üzerinden değerleri okuyun.
+
+## Artifactory Örneği
 
 ```bash
-python -m pip install -e ./python[dev]
+python -m pip install --index-url "https://<ARTIFACTORY_HOST>/artifactory/api/pypi/<PYPI_REPO_KEY>/simple" turkcell-bt-python-lib==<VERSION>
 ```
 
-Wheel veya sdist install örneği:
-
-```bash
-python -m pip install ./python/dist/turkcell_bt_python_lib-1.0.0-py3-none-any.whl
-```
-
-## Import Örneği
+## Minimal Kod
 
 ```python
 from turkcell_bt_python.configuration_manager import BeyondTrustConfigurationManager
 
 with BeyondTrustConfigurationManager.create_and_load() as manager:
-    value = manager.get_property("bt.acc.LinuxProd.root")
+    managed_password = manager.get_property("bt.acc.MySystem.MyAccount")
+    safe_password = manager.get_property("bt.safe.MyFolder.MyTitle.password")
+    safe_username = manager.get_property("bt.safe.MyFolder.MyTitle.username")
 ```
 
-## Local Windows
+## Zorunlu Ayarlar
 
-`classic API auth` örneği:
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID`, `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY`, opsiyonel `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
+
+## POC ile Hızlı Doğrulama
+
+`POC`, sadece seçilen 3 örnek key'i yazar, refresh açıksa süreç açık kalır ve çıktı değiştiğinde blok halinde tekrar basar.
+
+Classic API:
 
 ```powershell
 . .\examples\env\windows-apikey.ps1.sample
-python -m turkcell_bt_python.demo_app
+turkcell-bt-poc
 ```
 
-`OAuth` örneği:
+OAuth:
 
 ```powershell
 . .\examples\env\windows-oauth.ps1.sample
-python -m turkcell_bt_python.demo_app
+turkcell-bt-poc
 ```
 
-## Local Linux
-
-`classic API auth` örneği:
+Alternatif çalıştırma:
 
 ```bash
-source ./examples/env/linux-apikey.sh.sample
-python -m turkcell_bt_python.demo_app
+python -m turkcell_bt_python.poc
 ```
 
-`OAuth` örneği:
+Demo helper key'leri:
 
-```bash
-source ./examples/env/linux-oauth.sh.sample
-python -m turkcell_bt_python.demo_app
-```
+- `BT_EXAMPLE_ACCOUNT=bt.acc.MySystem.MyAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.MyFolder.MyTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.MyFolder.MyTitle.username`
 
 ## Kubernetes
 
 Önerilen manifest setleri:
 
-- `classic API auth`: [k8s/apikey-configmap.yml](k8s/apikey-configmap.yml), [k8s/apikey-secret.yml](k8s/apikey-secret.yml), [k8s/apikey-deployment.yml](k8s/apikey-deployment.yml)
+- `Classic API`: [k8s/apikey-configmap.yml](k8s/apikey-configmap.yml), [k8s/apikey-secret.yml](k8s/apikey-secret.yml), [k8s/apikey-deployment.yml](k8s/apikey-deployment.yml)
 - `OAuth`: [k8s/oauth-configmap.yml](k8s/oauth-configmap.yml), [k8s/oauth-secret.yml](k8s/oauth-secret.yml), [k8s/oauth-deployment.yml](k8s/oauth-deployment.yml)
 
-## Demo App
+## Operasyon Notları
 
-Demo app:
-
-- raw logging banner basar
-- tüm yüklü `bt.*` key'lerini yazdırır
-- iki auth mode'u da destekler
-- `BEYONDTRUST_USE_APP_USER` değerinin explicit verilmesini bekler
-- seçilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
-
-Çalıştırma komutu:
-
-```bash
-python -m turkcell_bt_python.demo_app
-```
-
-Console script örneği:
-
-```bash
-turkcell-bt-demo
-```
-
-Demo-only helper parameter örnekleri:
-
-- `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
-- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
-- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- Bir helper parameter set edilmemişse demo app ilgili example output için skip mesajı yazar.
-- Bir helper parameter yüklenmiş bir key'e işaret etmiyorsa demo app `Demo example key not found: <key>` mesajı yazar.
-
-## OAuth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=true`
-- `BEYONDTRUST_CLIENT_ID=<CLIENT_ID>`
-- `BEYONDTRUST_CLIENT_SECRET=<CLIENT_SECRET>`
-
-## classic API auth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=false`
-- `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` değerini `runas` bilgisini ayrı vermek istiyorsanız kullanın
-
-## Refresh Interval Notu
-
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
-- `BT_REFRESH_TIME` sadece backward compatibility için desteklenen legacy alias'tır.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.
+- Normal kullanımda per-refresh başarı logu basılmaz.
+- `Classic API` modunda `Auth/SignAppin` adımı başarısız olsa bile library veri yüklemeye devam etmeyi dener.
+- Proxy environment variable'larından etkilenmemesi için session `trust_env=false` ile çalışır.
+- Daha detaylı log gerekiyorsa geçici olarak `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Refresh ayarı için canonical parametre `BEYONDTRUST_REFRESH_INTERVAL`'dır.

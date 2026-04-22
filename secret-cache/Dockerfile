@@ -20,4 +20,4 @@ ENV SCACHESERVER=""
 EXPOSE 8443
 EXPOSE 443
 
-ENTRYPOINT ["/opt/pbps/configure.sh"]
+ENTRYPOINT ["/bin/sh", "/opt/pbps/configure.sh"]

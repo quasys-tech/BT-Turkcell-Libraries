@@ -14,11 +14,15 @@ spec:
       labels:
         app: beyondtrust-secrets-cache
     spec:
-      # nodeSelector:
-      #   node-role.kubernetes.io/infra: ""
+      # --- HostAliases Buraya Ekleniyor ---
+      hostAliases:
+        - ip: "192.168.2.11"
+          hostnames:
+            - "pam.quasys.com.tr"
+        # ------------------------------------
       containers:
         - name: container
-          image: "docker.io/enespekdas/secret-cache:v1.0"
+          image: "docker.io/enespekdas/secret-cache:v1.4"
           ports:
             - containerPort: 8443
               protocol: TCP
@@ -30,12 +34,12 @@ spec:
               command:
                 - /bin/sh
                 - "-c"
-                - grep -q 'Sync complete' /var/opt/pbps/log/pspca.log
+                - netstat -lnt | grep -q ':8443 '
             initialDelaySeconds: 15
-            timeoutSeconds: 1
+            timeoutSeconds: 3
             periodSeconds: 10
             successThreshold: 1
-            failureThreshold: 3
+            failureThreshold: 6
           volumeMounts:
             - name: btcert-volume
               mountPath: /opt/pbps/server.pem
@@ -43,6 +47,9 @@ spec:
             - name: btcert-volume
               mountPath: /opt/pbps/server.key
               subPath: SCACHESERVERCERTKEY
+            - name: btcert-volume
+              mountPath: /opt/pbps/password-safe-ca.pem
+              subPath: PASSWORDSAFECACERT
           resources:
             limits:
               cpu: 50m
@@ -52,7 +59,7 @@ spec:
               memory: 32Mi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
       volumes:
         - name: btcert-volume
           configMap:

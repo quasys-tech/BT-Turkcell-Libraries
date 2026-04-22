@@ -1,20 +1,26 @@
 # .NET Usage
 
-## Library Ekleme
+## Önerilen Entegrasyon Akışı
 
-Package reference örneği:
+1. Package'i Artifactory üzerindeki NuGet repository'sinden ekleyin.
+2. Uygulama başlangıcında BeyondTrust environment variable'larını verin.
+3. `builder.Configuration.AddBeyondTrustSecrets();` çağrısını startup aşamasında yapın.
+4. Uygulama içinde canonical `bt.*` key'leri üzerinden değerleri okuyun.
+
+## Artifactory Örneği
 
 ```bash
-dotnet add package Turkcell.BT.Dotnet.Lib
+dotnet nuget add source "https://<ARTIFACTORY_HOST>/artifactory/api/nuget/<NUGET_REPO_KEY>/v3/index.json" --name bt-artifactory
+dotnet add package Turkcell.BT.Dotnet.Lib --version <VERSION> --source bt-artifactory
 ```
 
-Bu repo içinde `ProjectReference` örneği:
+`PackageReference` örneği:
 
 ```xml
-<ProjectReference Include="..\src\Turkcell.BT.Dotnet.Lib\Turkcell.BT.Dotnet.Lib.csproj" />
+<PackageReference Include="Turkcell.BT.Dotnet.Lib" Version="<VERSION>" />
 ```
 
-## Minimal Code
+## Minimal Kod
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
@@ -23,96 +29,54 @@ builder.Configuration.AddBeyondTrustSecrets();
 using var host = builder.Build();
 var configuration = host.Services.GetRequiredService<IConfiguration>();
 
-var managedPassword = configuration["bt.acc.LinuxProd.root"];
-var safePassword = configuration["bt.safe.Team/Db.AppDb.password"];
+var managedPassword = configuration["bt.acc.MySystem.MyAccount"];
+var safePassword = configuration["bt.safe.MyFolder.MyTitle.password"];
+var safeUsername = configuration["bt.safe.MyFolder.MyTitle.username"];
 ```
 
-## Local Windows
+## Zorunlu Ayarlar
 
-`classic API auth` örneği:
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID`, `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY`, opsiyonel `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
+
+## POC ile Hızlı Doğrulama
+
+`POC`, sadece seçilen 3 örnek key'i yazar, refresh açıksa süreç açık kalır ve çıktı değiştiğinde blok halinde tekrar basar.
+
+Classic API:
 
 ```powershell
 . .\examples\env\windows-apikey.ps1.sample
 dotnet run --project .\samples\Turkcell.BT.Dotnet.Demo
 ```
 
-`OAuth` örneği:
+OAuth:
 
 ```powershell
 . .\examples\env\windows-oauth.ps1.sample
 dotnet run --project .\samples\Turkcell.BT.Dotnet.Demo
 ```
 
-## Local Linux
+Demo helper key'leri:
 
-`classic API auth` örneği:
-
-```bash
-source ./examples/env/linux-apikey.sh.sample
-dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
-```
-
-`OAuth` örneği:
-
-```bash
-source ./examples/env/linux-oauth.sh.sample
-dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
-```
+- `BT_EXAMPLE_ACCOUNT=bt.acc.MySystem.MyAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.MyFolder.MyTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.MyFolder.MyTitle.username`
 
 ## Kubernetes
 
 Önerilen manifest setleri:
 
-- `classic API auth`: [k8s/apikey-configmap.yml](k8s/apikey-configmap.yml), [k8s/apikey-secret.yml](k8s/apikey-secret.yml), [k8s/apikey-deployment.yml](k8s/apikey-deployment.yml)
+- `Classic API`: [k8s/apikey-configmap.yml](k8s/apikey-configmap.yml), [k8s/apikey-secret.yml](k8s/apikey-secret.yml), [k8s/apikey-deployment.yml](k8s/apikey-deployment.yml)
 - `OAuth`: [k8s/oauth-configmap.yml](k8s/oauth-configmap.yml), [k8s/oauth-secret.yml](k8s/oauth-secret.yml), [k8s/oauth-deployment.yml](k8s/oauth-deployment.yml)
 
-## Demo App
+## Operasyon Notları
 
-Demo app:
-
-- sadece environment variable okur
-- iki auth mode'u da destekler
-- `BEYONDTRUST_USE_APP_USER` değerinin explicit verilmesini bekler
-- yüklenen tüm `bt.*` key'lerini yazdırır
-- seçilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
-
-Çalıştırma komutu:
-
-```bash
-dotnet run --project ./samples/Turkcell.BT.Dotnet.Demo
-```
-
-Demo-only helper parameter örnekleri:
-
-- `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
-- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
-- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- Bir helper parameter set edilmemişse demo app ilgili example output için skip mesajı yazar.
-- Bir helper parameter yüklenmiş bir key'e işaret etmiyorsa demo app `Demo example key not found: <key>` mesajı yazar.
-
-## OAuth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=true`
-- `BEYONDTRUST_CLIENT_ID=<CLIENT_ID>`
-- `BEYONDTRUST_CLIENT_SECRET=<CLIENT_SECRET>`
-
-## classic API auth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=false`
-- `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` değerini `runas` bilgisini ayrı vermek istiyorsanız kullanın
-
-## Refresh Interval Notu
-
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
-- `BT_REFRESH_TIME` sadece backward compatibility için desteklenen legacy alias'tır.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.
+- Normal kullanımda per-refresh başarı logu basılmaz.
+- `Classic API` modunda `Auth/SignAppin` adımı başarısız olsa bile library veri yüklemeye devam etmeyi dener.
+- Daha detaylı log gerekiyorsa geçici olarak `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Refresh ayarı için canonical parametre `BEYONDTRUST_REFRESH_INTERVAL`'dır.

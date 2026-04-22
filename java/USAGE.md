@@ -1,29 +1,53 @@
 # Java Usage
 
-## Library Ekleme
+## Önerilen Entegrasyon Akışı
 
-Maven dependency örneği:
+1. Library'yi Artifactory üzerinden Maven dependency olarak ekleyin.
+2. Uygulama başlangıcında BeyondTrust environment variable'larını verin.
+3. `BeyondTrustConfigurationManager.createAndLoad()` ile manager'ı oluşturun.
+4. Uygulama içinde canonical `bt.*` key'leri üzerinden değerleri okuyun.
+
+## Artifactory Örneği
 
 ```xml
+<repositories>
+  <repository>
+    <id>bt-artifactory</id>
+    <url>https://<ARTIFACTORY_HOST>/artifactory/<MAVEN_REPO_KEY></url>
+  </repository>
+</repositories>
+
 <dependency>
   <groupId>com.turkcell.bt.java</groupId>
   <artifactId>turkcell-bt-java-lib</artifactId>
-  <version>1.0.0</version>
+  <version><VERSION></version>
 </dependency>
 ```
 
-## Minimal Code
+## Minimal Kod
 
 ```java
 try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad()) {
-    String managedPassword = manager.getProperty("bt.acc.LinuxProd.root");
-    String safePassword = manager.getProperty("bt.safe.Team/Db.AppDb.password");
+    String managedPassword = manager.getProperty("bt.acc.MySystem.MyAccount");
+    String safePassword = manager.getProperty("bt.safe.MyFolder.MyTitle.password");
+    String safeUsername = manager.getProperty("bt.safe.MyFolder.MyTitle.username");
 }
 ```
 
-## Local Windows
+## Zorunlu Ayarlar
 
-`classic API auth` örneği:
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID`, `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY`, opsiyonel `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
+
+## POC ile Hızlı Doğrulama
+
+`POC`, sadece seçilen 3 örnek key'i yazar, refresh açıksa süreç açık kalır ve çıktı değiştiğinde blok halinde tekrar basar.
+
+Classic API:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-apikey.ps1.sample
@@ -31,7 +55,7 @@ mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
 java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-`OAuth` örneği:
+OAuth:
 
 ```powershell
 . .\turkcell-bt-java-lib\examples\env\windows-oauth.ps1.sample
@@ -39,79 +63,21 @@ mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
 java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-## Local Linux
+Demo helper key'leri:
 
-`classic API auth` örneği:
-
-```bash
-source ./turkcell-bt-java-lib/examples/env/linux-apikey.sh.sample
-mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
-java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
-```
-
-`OAuth` örneği:
-
-```bash
-source ./turkcell-bt-java-lib/examples/env/linux-oauth.sh.sample
-mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
-java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
-```
+- `BT_EXAMPLE_ACCOUNT=bt.acc.MySystem.MyAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.MyFolder.MyTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.MyFolder.MyTitle.username`
 
 ## Kubernetes
 
 Önerilen manifest setleri:
 
-- `classic API auth`: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
+- `Classic API`: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
 - `OAuth`: [turkcell-bt-java-lib/k8s/oauth-configmap.yml](turkcell-bt-java-lib/k8s/oauth-configmap.yml), [turkcell-bt-java-lib/k8s/oauth-secret.yml](turkcell-bt-java-lib/k8s/oauth-secret.yml), [turkcell-bt-java-lib/k8s/oauth-deployment.yml](turkcell-bt-java-lib/k8s/oauth-deployment.yml)
 
-## Demo App
+## Operasyon Notları
 
-Ana demo app:
-
-- önce `system property`, sonra `environment variable` okur
-- iki auth mode'u da destekler
-- `BEYONDTRUST_USE_APP_USER` değerinin explicit verilmesini bekler
-- yüklenen tüm `bt.*` key'lerini yazdırır
-- seçilen example managed account, Secret Safe password ve Secret Safe username key'lerini raw loglar
-
-Çalıştırma komutu:
-
-```bash
-mvn -f ./turkcell-bt-java-lib/pom-demo.xml -DskipTests package
-java -jar ./turkcell-bt-java-lib/target/turkcell-bt-java-demo-shaded.jar
-```
-
-Demo-only helper parameter örnekleri:
-
-- `BT_EXAMPLE_ACCOUNT=bt.acc.SampleSystem.SampleAccount`
-- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.SampleFolder.SampleTitle.password`
-- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.SampleFolder.SampleTitle.username`
-- Bir helper parameter set edilmemişse demo app ilgili example output için skip mesajı yazar.
-- Bir helper parameter yüklenmiş bir key'e işaret etmiyorsa demo app `Demo example key not found: <key>` mesajı yazar.
-
-## OAuth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=true`
-- `BEYONDTRUST_CLIENT_ID=<CLIENT_ID>`
-- `BEYONDTRUST_CLIENT_SECRET=<CLIENT_SECRET>`
-
-## classic API auth Senaryosu
-
-Gerekli parameter'lar:
-
-- `BEYONDTRUST_ENABLED=true`
-- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
-- `BEYONDTRUST_USE_APP_USER=false`
-- `BEYONDTRUST_API_KEY=<API_KEY>` veya `PS-Auth key=<API_KEY>; runas=<RUNAS_USER>;`
-- `BEYONDTRUST_RUNAS_USER=<RUNAS_USER>` değerini `runas` bilgisini ayrı vermek istiyorsanız kullanın
-
-## Refresh Interval Notu
-
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
-- `BT_REFRESH_TIME` sadece backward compatibility için desteklenen legacy alias'tır.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.
+- Normal kullanımda per-refresh başarı logu basılmaz.
+- Daha detaylı log gerekiyorsa geçici olarak `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Refresh ayarı için canonical parametre `BEYONDTRUST_REFRESH_INTERVAL`'dır.

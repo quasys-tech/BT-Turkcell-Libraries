@@ -1,19 +1,28 @@
 # Turkcell.BT.Dotnet.Lib
 
-`Turkcell.BT.Dotnet.Lib`, BeyondTrust managed account password ve Secret Safe value'larını `IConfiguration` içine yükler.
+`Turkcell.BT.Dotnet.Lib`, BeyondTrust managed account ve Secret Safe değerlerini `.NET IConfiguration` içine yükler.
 
-## Desteklenen Auth Mode'lar
+## Artifactory'den Ekleme
 
-- `OAuth / App User / Client Credentials`
-- `classic API auth`
+NuGet source örneği:
 
-## Üretilen Key Formatları
+```bash
+dotnet nuget add source "https://<ARTIFACTORY_HOST>/artifactory/api/nuget/<NUGET_REPO_KEY>/v3/index.json" --name bt-artifactory
+```
 
-- `bt.acc.{SystemName}.{AccountName}`
-- `bt.safe.{Folder}.{Title}.password`
-- `bt.safe.{Folder}.{Title}.username`
+Package ekleme örneği:
 
-## Quick Integration
+```bash
+dotnet add package Turkcell.BT.Dotnet.Lib --version <VERSION> --source bt-artifactory
+```
+
+`PackageReference` örneği:
+
+```xml
+<PackageReference Include="Turkcell.BT.Dotnet.Lib" Version="<VERSION>" />
+```
+
+## Minimal Entegrasyon
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
@@ -22,25 +31,37 @@ builder.Configuration.AddBeyondTrustSecrets();
 using var host = builder.Build();
 var configuration = host.Services.GetRequiredService<IConfiguration>();
 
-var managedPassword = configuration["bt.acc.LinuxProd.root"];
-var secretPassword = configuration["bt.safe.Team/Db.AppDb.password"];
+var managedPassword = configuration["bt.acc.MySystem.MyAccount"];
+var secretPassword = configuration["bt.safe.MyFolder.MyTitle.password"];
+var secretUsername = configuration["bt.safe.MyFolder.MyTitle.username"];
 ```
+
+## Gerekli Konfigürasyon
+
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID` ve `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY` ve gerekirse `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
+- Opsiyonel refresh ayarı için: `BEYONDTRUST_REFRESH_INTERVAL`
+
+## Üretilen Key Formatları
+
+- `bt.acc.{SystemName}.{AccountName}`
+- `bt.safe.{Folder}.{Title}.password`
+- `bt.safe.{Folder}.{Title}.username`
 
 ## Notlar
 
-- `BEYONDTRUST_USE_APP_USER`, `BEYONDTRUST_ENABLED=true` olduğunda explicit olarak verilmelidir.
-- `BEYONDTRUST_REFRESH_INTERVAL` canonical parameter'dır.
-- `BT_REFRESH_TIME` legacy alias olarak desteklenir. Canonical parameter yoksa ve parse edilebiliyorsa kullanılır.
-- `BEYONDTRUST_REFRESH_INTERVAL` invalid ise validation error oluşur. Bu durumda `BT_REFRESH_TIME` veya `default value`'ya silent fallback yoktur.
-- `BT_REFRESH_TIME` invalid ise ve canonical parameter yoksa `default value` kullanılır.
-- Shared boolean parameter'lar invalid ise validation error oluşur.
-- `BEYONDTRUST_ALL_SECRETS_ENABLED` backward compatibility için kabul edilir, fakat Secret Safe yüklemesi yine `BEYONDTRUST_SECRET_SAFE_PATHS` ile path-based çalışır.
-- Demo app raw secret logging yaptığı için aynı logging style production kullanımda önerilmez.
-- `BT_EXAMPLE_ACCOUNT`, `BT_EXAMPLE_SAFE_PASSWORD` ve `BT_EXAMPLE_SAFE_USERNAME` demo-only helper parameter'lardır.
+- `BEYONDTRUST_USE_APP_USER` değeri explicit verilmelidir.
+- Library başlangıçta snapshot yükler, refresh aktifse arka planda günceller.
+- Normal kullanımda per-refresh başarı logu basmaz. Detaylı log gerekiyorsa `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Demo doğrulaması için sample proje içindeki `POC` entrypoint kullanılabilir.
 
 ## Diğer Docs
 
 - [USAGE.md](USAGE.md)
 - [PARAMETERS.md](PARAMETERS.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- Package-level notlar: [src/Turkcell.BT.Dotnet.Lib/README.md](src/Turkcell.BT.Dotnet.Lib/README.md)
+- Package notları: [src/Turkcell.BT.Dotnet.Lib/README.md](src/Turkcell.BT.Dotnet.Lib/README.md)

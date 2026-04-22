@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bt-java-demo-cache-apikey
+  name: bt-dotnet-demo-cache-apikey
   namespace: bt-turkcell
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bt-java-demo-cache-apikey
+      app: bt-dotnet-demo-cache-apikey
   template:
     metadata:
       labels:
-        app: bt-java-demo-cache-apikey
+        app: bt-dotnet-demo-cache-apikey
     spec:
       containers:
-        - name: bt-java-demo-cache-apikey
-          image: docker.io/enespekdas/btjava-lib:v1.0
+        - name: bt-dotnet-demo-cache-apikey
+          image: docker.io/enespekdas/btdotnet-lib:v1.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
-                name: bt-java-demo-cache-apikey-secret
+                name: bt-dotnet-demo-cache-apikey-secret
