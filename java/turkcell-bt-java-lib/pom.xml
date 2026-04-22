@@ -10,6 +10,7 @@
   <packaging>jar</packaging>
 
   <name>turkcell-bt-java-lib</name>
+  <description>BeyondTrust configuration manager library for Java applications.</description>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>

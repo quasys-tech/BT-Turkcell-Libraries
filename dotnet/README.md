@@ -1,136 +1,67 @@
-# BeyondTrust .NET Library Örnek Kullanımı 🛡️
-Bu kütüphane, .NET uygulamalarının BeyondTrust Password Safe üzerindeki Managed Account ve Secret Safe şifrelerini IConfiguration hiyerarşisine otomatik olarak enjekte eder.
+# Turkcell.BT.Dotnet.Lib
 
-🚀 Hızlı Başlangıç (Entegrasyon)
-## 1. Bağımlılığı Ekle (NuGet)
-Projenizin .csproj dosyasına kütüphaneyi ekleyin (Artifactory entegrasyonu sonrası):
-```dotnet
+`Turkcell.BT.Dotnet.Lib`, BeyondTrust managed account ve Secret Safe değerlerini `.NET IConfiguration` içine yükler.
 
-<ItemGroup>
-    <PackageReference Include="Turkcell.BT.Dotnet.Lib" Version="1.0.0" />
-</ItemGroup>
+## Artifactory'den Ekleme
 
+NuGet source örneği:
+
+```bash
+dotnet nuget add source "https://<ARTIFACTORY_HOST>/artifactory/api/nuget/<NUGET_REPO_KEY>/v3/index.json" --name bt-artifactory
 ```
 
-## Kullanım (Kod)
+Package ekleme örneği:
 
-Uygulamanızın başlangıcında (Program.cs) sadece tek bir satır ekleyerek tüm şifreleri konfigürasyona dahil edebilirsini
+```bash
+dotnet add package Turkcell.BT.Dotnet.Lib --version <VERSION> --source bt-artifactory
+```
 
-```java
+`PackageReference` örneği:
 
-using Microsoft.Extensions.Configuration;
-using Turkcell.BT.Dotnet.Lib;
+```xml
+<PackageReference Include="Turkcell.BT.Dotnet.Lib" Version="<VERSION>" />
+```
 
+## Minimal Entegrasyon
+
+```csharp
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddBeyondTrustSecrets();
 
-// ⭐ SİHİRLİ SATIR: Ortam değişkenlerini (ConfigMap) otomatik okur ve servisi bağlar.
-builder.Configuration.AddBeyondTrustSecrets(); 
+using var host = builder.Build();
+var configuration = host.Services.GetRequiredService<IConfiguration>();
 
-var host = builder.Build();
-var config = host.Services.GetRequiredService<IConfiguration>();
-
-// Kullanım: Standart IConfiguration üzerinden erişim
-string dbPass = config["bt.acc.SystemName.AccountName"];
-string apiPass = config["bt.safe.FolderName.SecretTitle.password"];
-
+var managedPassword = configuration["bt.acc.MySystem.MyAccount"];
+var secretPassword = configuration["bt.safe.MyFolder.MyTitle.password"];
+var secretUsername = configuration["bt.safe.MyFolder.MyTitle.username"];
 ```
 
-## Yapılandırma (OpenShift / Deployment)
+## Gerekli Konfigürasyon
 
-Kütüphanenin çalışması için aşağıdaki ortam değişkenlerinin ConfigMap üzerinden pod'a enjekte edilmesi gerekir:
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID` ve `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY` ve gerekirse `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
+- Opsiyonel refresh ayarı için: `BEYONDTRUST_REFRESH_INTERVAL`
 
+## Üretilen Key Formatları
 
-`BEYONDTRUST_API_URL` Beyondtrust API Adresi -- `https://secrets-cache-service/BeyondTrust/api/public/v3`
+- `bt.acc.{SystemName}.{AccountName}`
+- `bt.safe.{Folder}.{Title}.password`
+- `bt.safe.{Folder}.{Title}.username`
 
-`BEYONDTRUST_API_KEY` Erişim Key'i  (PS-Auth) -- `BEYONDTRUST_API_KEY=..<ApiKey>.; runas=.<User>..;`
+## Notlar
 
-`BT_REFRESH_TIME` Yenileme periyodu (saniye) , `default 1800 . 0 ise yenileme yapmaz`
+- `BEYONDTRUST_USE_APP_USER` değeri explicit verilmelidir.
+- Library başlangıçta snapshot yükler, refresh aktifse arka planda günceller.
+- Normal kullanımda per-refresh başarı logu basmaz. Detaylı log gerekiyorsa `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Demo doğrulaması için sample proje içindeki `POC` entrypoint kullanılabilir.
 
-`BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED` yetkili olunan tüm managed account'lar çekilsin mi ? ` true/false `
+## Diğer Docs
 
-`BEYONDTRUST_MANAGED_ACCOUNTS` Managed Account'lar (;) ile ayrılır . ManagedSystem.Managed Account key'i ile kour. `System1.Acc1;System2.Acc2`
-
-`BEYONDTRUST_SECRET_SAFE_PATHS` Secret Safe bilgileri , Birden fazla olduğu noktada "," ile ayrılır. `SafeFolder1,SafeFolder2`
-
-
-## 🔑 Key Formatı Kuralları
-Manager üzerinden şifre çağırırken aşağıdaki formatları kullanmalısınız:
-
-Managed Accounts:` bt.acc.[SystemName].[AccountName] `
-
-Secret Safe (Şifre):` bt.safe.[Folder].[Title].password `
-
-Secret Safe (Kullanıcı):` bt.safe.[Folder].[Title].username `
-
-
-## 🛠️ Sorun Giderme
-LOGS: Uygulama başladığında `🚀 [BeyondTrust] Zero-Config aktif. İlk veriler çekiliyor... ` logunu gördüğünüzden emin olun.
-
-SSL Hatası: Eğer `The SSL connection could not be established`  alıyorsanız, `BEYONDTRUST_IGNORE_SSL_ERRORS` değerini `true` yapın veya geçerli bir `BEYONDTRUST_CERTIFICATE_CONTENT` sağlayın.
-
-YOK Değeri: Eğer anahtarlar "YOK" dönüyorsa, ConfigMap'teki key isimleri ile `BEYONDTRUST_MANAGED_ACCOUNTS` içeriğinin eşleştiğinden emin olun.
-
-
-
-
-## Example Configmap 
-
-```dotnet
-
-  BEYONDTRUST_ENABLED: "true"
-  BEYONDTRUST_API_URL: "https://pandora.turkcell.com.tr/BeyondTrust/api/public/v3"
-  BEYONDTRUST_API_KEY: "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=pandora;"
-
-  # SSL ve Refresh Ayarları
-  BEYONDTRUST_IGNORE_SSL_ERRORS: "false"
-  BT_REFRESH_TIME: "300" ## saniye cinsindendir
-
-  # Hangi veriler çekilecek?
-  BEYONDTRUST_MANAGED_ACCOUNTS: "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme"
-  BEYONDTRUST_SECRET_SAFE_PATHS: "PANDORA_SC_DEMO_DEV,PANDORA_SC_DEMO_TEST"
-  BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED: "false"
-  BEYONDTRUST_CERTIFICATE_CONTENT: |-
-    -----BEGIN CERTIFICATE-----
-    MIIGejCCBWKgAwIBAgIQCxP8yr431fBRTbEeSyINlzANBgkqhkiG9w0BAQsFADBg
-    MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
-    d3cuZGlnaWNlcnQuY29tMR8wHQYDVQQDExZHZW9UcnVzdCBUTFMgUlNBIENBIEcx
-    MB4XDTI1MDgwMTAwMDAwMFoXDTI2MDkwMTIzNTk1OVowGjEYMBYGA1UEAwwPKi5x
-    dWFzeXMuY29tLnRyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4BWo
-    OI6cHZgV3pyvE8upY7Q7QoaIPHBVrdF6osShvYvcFAnstdHVJI/mFYak1JcEcPoA
-```
-
-
-### Example Application 
-
-
-```dotnet
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Turkcell.BT.Dotnet.Lib;
-
-Console.WriteLine("🚀 Uygulama Başlatılıyor...");
-
-var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddBeyondTrustSecrets(); 
-
-var host = builder.Build();
-var config = host.Services.GetRequiredService<IConfiguration>();
-
-// ConfigMap'ten hangi key'leri arayacağımızı okuyoruz
-string safePassKey = Environment.GetEnvironmentVariable("BT_EXAMPLE_SAFE_PASSWORD") ?? "bt.safe.default";
-string managedAccountKey = Environment.GetEnvironmentVariable("BT_EXAMPLE_ACCOUNT") ?? "bt.acc.default";
-
-while (true)
-{
-    string examplePass = config[safePassKey] ?? "KEY_TANIMSIZ";
-    string exampleAcc  = config[managedAccountKey] ?? "KEY_TANIMSIZ";
-
-    Console.WriteLine($"\n⏰ Zaman: {DateTime.Now:HH:mm:ss}");
-    Console.WriteLine($"🔑 Safe Password: {examplePass}");
-    Console.WriteLine($"🛡️  Account Pass : {exampleAcc}");
-    Console.WriteLine("--------------------------------------------------");
-
-    await Task.Delay(5000); 
-}
-```
+- [USAGE.md](USAGE.md)
+- [PARAMETERS.md](PARAMETERS.md)
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Package notları: [src/Turkcell.BT.Dotnet.Lib/README.md](src/Turkcell.BT.Dotnet.Lib/README.md)

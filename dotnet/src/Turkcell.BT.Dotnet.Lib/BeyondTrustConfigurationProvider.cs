@@ -2,108 +2,169 @@ using Microsoft.Extensions.Configuration;
 
 namespace Turkcell.BT.Dotnet.Lib;
 
-/// <summary>
-/// BeyondTrust verilerini ConfigurationSource üzerinden Build eder.
-/// </summary>
-public class BeyondTrustConfigurationSource : IConfigurationSource
+public sealed class BeyondTrustConfigurationSource : IConfigurationSource
 {
     private readonly BeyondTrustOptions _options;
-    public BeyondTrustConfigurationSource(BeyondTrustOptions options) => _options = options;
 
-    public IConfigurationProvider Build(IConfigurationBuilder builder) 
-        => new BeyondTrustConfigurationProvider(_options);
+    public BeyondTrustConfigurationSource(BeyondTrustOptions options)
+    {
+        _options = options;
+    }
+
+    public IConfigurationProvider Build(IConfigurationBuilder builder)
+    {
+        return new BeyondTrustConfigurationProvider(_options);
+    }
 }
 
-/// <summary>
-/// BeyondTrust API'sinden verileri çeken ve periyodik olarak güncelleyen ConfigurationProvider.
-/// </summary>
 public class BeyondTrustConfigurationProvider : ConfigurationProvider, IDisposable
 {
     private readonly BeyondTrustOptions _options;
+    private readonly Func<Task<Dictionary<string, string?>>> _snapshotLoader;
+    private readonly object _syncRoot = new();
+    private readonly bool _debugEnabled = string.Equals(
+        Environment.GetEnvironmentVariable("BEYONDTRUST_DEBUG"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
     private Timer? _refreshTimer;
-    private readonly object _lock = new();
 
-    public BeyondTrustConfigurationProvider(BeyondTrustOptions options) => _options = options;
+    public BeyondTrustConfigurationProvider(BeyondTrustOptions options)
+        : this(
+            options,
+            async () =>
+            {
+                using var service = new BeyondTrustService(options);
+                return await service.FetchAllSecretsAsync().ConfigureAwait(false);
+            })
+    {
+    }
 
-    /// <summary>
-    /// Uygulama ilk ayağa kalktığında veriyi yükler ve yenileme zamanlayıcısını başlatır.
-    /// </summary>
+    internal BeyondTrustConfigurationProvider(BeyondTrustOptions options, Func<Task<Dictionary<string, string?>>> snapshotLoader)
+    {
+        _options = options;
+        _snapshotLoader = snapshotLoader;
+    }
+
     public override void Load()
     {
-        // 1. Kritik Kontrol: Sadece Enabled false ise duruyoruz.
-        // Eski kodda burada ApiKey kontrolü vardı, onu kaldırdık çünkü artık OAuth (AppUser) kullanıyor olabiliriz.
         if (!_options.Enabled)
         {
+            Console.WriteLine("[BeyondTrust] Initial load skipped because the provider is disabled.");
             return;
         }
 
-        // 2. İlk Veriyi Yükle
-        LoadDataInternal();
-
-        // 3. Periyodik Yenileme Zamanlayıcısını Kur
-        if (_options.RefreshIntervalSeconds > 0)
+        if (_debugEnabled)
         {
-            var interval = TimeSpan.FromSeconds(_options.RefreshIntervalSeconds);
-            
-            // Timer sızıntısını önlemek için varsa temizle
-            _refreshTimer?.Dispose();
-            
-            // Periyodik yenileme başlatılır
-            _refreshTimer = new Timer(DoRefresh, null, interval, interval);
-            
-            // Turkcell operasyonel log standartları için bilgi
-            Console.WriteLine($"✅ [Turkcell.BT.BeyondTrust] Background refresh started. Interval: {_options.RefreshIntervalSeconds}s");
+            Console.WriteLine(
+                $"[BeyondTrust][DEBUG] Provider load started. Auth mode: {(_options.UseAppUser ? "OAuth App User" : "Classic API")}, " +
+                $"Refresh interval: {_options.RefreshIntervalSeconds}s, Managed accounts: {_options.ManagedAccounts ?? "<empty>"}, " +
+                $"All managed accounts enabled: {_options.AllManagedAccountsEnabled}, Secret Safe paths: {_options.SecretSafePaths ?? "<empty>"}");
+        }
+
+        lock (_syncRoot)
+        {
+            if (TryLoadSnapshot("Initial load", out var snapshot))
+            {
+                Data = snapshot;
+                Console.WriteLine($"[BeyondTrust] Initial load completed. Loaded {snapshot.Count} key(s).");
+            }
+            else
+            {
+                Console.WriteLine("[BeyondTrust] Initial load failed. Keeping empty configuration snapshot.");
+            }
+
+            if (_options.RefreshIntervalSeconds > 0)
+            {
+                var interval = TimeSpan.FromSeconds(_options.RefreshIntervalSeconds);
+                _refreshTimer?.Dispose();
+                _refreshTimer = new Timer(DoRefresh, null, interval, interval);
+                Console.WriteLine($"[BeyondTrust] Background refresh enabled with {_options.RefreshIntervalSeconds}s interval.");
+            }
+            else
+            {
+                Console.WriteLine("[BeyondTrust] Background refresh is disabled because BEYONDTRUST_REFRESH_INTERVAL=0.");
+            }
         }
     }
 
-    private void DoRefresh(object? state)
+    private void DoRefresh(object? _)
     {
-        try
+        lock (_syncRoot)
         {
-            // Thread-safety: Aynı anda birden fazla yenileme tetiklenmesini engelle
-            lock (_lock)
+            if (_debugEnabled)
             {
-                using var service = new BeyondTrustService(_options);
-                
-                // Servis artık options içindeki UseAppUser bayrağına göre 
-                // ya OAuth ya da API Key ile token alıp veriyi çekecek.
-                var newData = service.FetchAllSecretsAsync().GetAwaiter().GetResult();
+                Console.WriteLine("[BeyondTrust][DEBUG] Refresh cycle started.");
+            }
 
-                if (newData != null && newData.Count > 0)
+            if (!TryLoadSnapshot("Refresh", out var snapshot))
+            {
+                Console.WriteLine("[BeyondTrust] Refresh failed. Keeping the last successful snapshot.");
+                return;
+            }
+
+            if (!DictionaryEquals(
+                    new Dictionary<string, string?>(Data, StringComparer.OrdinalIgnoreCase),
+                    snapshot))
+            {
+                Data = snapshot;
+                OnReload();
+
+                if (_debugEnabled)
                 {
-                    // Case-Insensitive dictionary olarak set ediyoruz ki key erişiminde sorun yaşanmasın
-                    Data = new Dictionary<string, string?>(newData, StringComparer.OrdinalIgnoreCase);
-                    
-                    // Uygulama genelinde konfigürasyonun değiştiğini bildirir (IOptionsMonitor tetikler)
-                    OnReload();
+                    Console.WriteLine($"[BeyondTrust][DEBUG] Refresh applied. Loaded {snapshot.Count} key(s).");
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            // Yenileme başarısız olsa bile uygulama eski verilerle çalışmaya devam eder
-            Console.WriteLine($"⚠️ [Turkcell.BT.BeyondTrust] Refresh failed at {DateTime.Now:HH:mm:ss}. Keeping stale data. Error: {ex.Message}");
+            else if (_debugEnabled)
+            {
+                Console.WriteLine("[BeyondTrust][DEBUG] Refresh completed with no snapshot changes.");
+            }
         }
     }
 
-    private void LoadDataInternal()
+    private bool TryLoadSnapshot(string operation, out Dictionary<string, string?> snapshot)
     {
+        snapshot = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
         try
         {
-            using var service = new BeyondTrustService(_options);
-            var data = service.FetchAllSecretsAsync().GetAwaiter().GetResult();
-            
-            if (data != null && data.Count > 0)
+            var loadedSnapshot = _snapshotLoader().GetAwaiter().GetResult() ??
+                                 new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            snapshot = new Dictionary<string, string?>(loadedSnapshot, StringComparer.OrdinalIgnoreCase);
+
+            if (_debugEnabled)
             {
-                Data = new Dictionary<string, string?>(data, StringComparer.OrdinalIgnoreCase);
+                Console.WriteLine($"[BeyondTrust][DEBUG] {operation} snapshot load succeeded with {snapshot.Count} key(s).");
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            // İlk yükleme hatası kritik olabilir, ancak uygulamanın çökmesini engellemek için sadece loglanır.
-            // Bu sayede uygulama (varsa) diğer config kaynaklarıyla çalışmaya çalışabilir.
-            Console.WriteLine($"❌ [Turkcell.BT.BeyondTrust] Initial load error: {ex.Message}");
+            Console.WriteLine($"[BeyondTrust] {operation} failed: {ex.Message}");
+            return false;
         }
+    }
+
+    private static bool DictionaryEquals(
+        IReadOnlyDictionary<string, string?> left,
+        IReadOnlyDictionary<string, string?> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var pair in left)
+        {
+            if (!right.TryGetValue(pair.Key, out var value) ||
+                !string.Equals(pair.Value, value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public void Dispose()

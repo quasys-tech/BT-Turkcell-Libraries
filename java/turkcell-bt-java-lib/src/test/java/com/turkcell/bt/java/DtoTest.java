@@ -1,35 +1,46 @@
 package com.turkcell.bt.java;
 
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DtoTest {
     @Test
-    void testDtos() {
-        // ManagedAccountDto
-        ManagedAccountDto acc = new ManagedAccountDto();
-        acc.setSystemName("Sys"); acc.setAccountName("Acc"); acc.setSystemId(1); acc.setAccountId(2);
-        assertEquals("Sys", acc.getSystemName());
-        assertEquals("Acc", acc.getAccountName());
-        assertEquals(1, acc.getSystemId());
-        assertEquals(2, acc.getAccountId());
+    void dtoAndOptionAccessorsWork() {
+        ManagedAccountDto account = new ManagedAccountDto();
+        account.setSystemName("Sys");
+        account.setAccountName("Acc");
+        account.setSystemId(1);
+        account.setAccountId(2);
+        assertEquals("Sys", account.getSystemName());
+        assertEquals("Acc", account.getAccountName());
+        assertEquals(1, account.getSystemId());
+        assertEquals(2, account.getAccountId());
 
-        // SecretSafeItemDto (Coverage %0'dan %100'e çıkar)
         SecretSafeItemDto item = new SecretSafeItemDto();
-        item.setTitle("T"); item.setFolder("F"); item.setPassword("P"); item.setUsername("U"); item.setAccount("A");
-        assertEquals("T", item.getTitle());
-        assertEquals("F", item.getFolder());
-        assertEquals("P", item.getPassword());
-        assertEquals("U", item.getUsername());
-        assertEquals("A", item.getAccount());
+        item.setTitle("Title");
+        item.setFolder("Folder");
+        item.setPassword("Password");
+        item.setUsername("Username");
+        item.setAccount("Account");
+        item.setSecretType("Credential");
+        assertEquals("Title", item.getTitle());
+        assertEquals("Folder", item.getFolder());
+        assertEquals("Password", item.getPassword());
+        assertEquals("Username", item.getUsername());
+        assertEquals("Account", item.getAccount());
+        assertEquals("Credential", item.getSecretType());
 
-        // BeyondTrustOptions auth fields
         BeyondTrustOptions options = new BeyondTrustOptions();
         options.setUseAppUser(true);
-        options.setClientId("cid");
-        options.setClientSecret("csecret");
+        options.setClientId("client-id");
+        options.setClientSecret("client-secret");
+        options.setCertificateContent("pem");
+        options.setRefreshIntervalSeconds(15);
         assertTrue(options.isUseAppUser());
-        assertEquals("cid", options.getClientId());
-        assertEquals("csecret", options.getClientSecret());
+        assertEquals("client-id", options.getClientId());
+        assertEquals("client-secret", options.getClientSecret());
+        assertEquals("pem", options.getCertificateContent());
+        assertEquals(15, options.getRefreshIntervalSeconds());
     }
 }

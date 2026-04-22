@@ -1,0 +1,11 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Turkcell.BT.Dotnet.Lib -> <workspace>\dotnet\src\Turkcell.BT.Dotnet.Lib\bin\Release\net8.0\Turkcell.BT.Dotnet.Lib.dll
+  Turkcell.BT.Dotnet.Demo -> <workspace>\dotnet\samples\Turkcell.BT.Dotnet.Demo\bin\Release\net8.0\Turkcell.BT.Dotnet.Demo.dll
+  Turkcell.BT.Dotnet.Tests -> <workspace>\dotnet\tests\Turkcell.BT.Dotnet.Tests\bin\Release\net8.0\Turkcell.BT.Dotnet.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.03

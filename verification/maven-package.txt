@@ -1,0 +1,86 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< com.turkcell.bt.java:turkcell-bt-java-demo >-------------
+[INFO] Building turkcell-bt-java-demo 1.0.0
+[INFO]   from pom-demo.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ turkcell-bt-java-demo ---
+[INFO] skip non existing resourceDirectory <workspace>\java\turkcell-bt-java-lib\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ turkcell-bt-java-demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ turkcell-bt-java-demo ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ turkcell-bt-java-demo ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ turkcell-bt-java-demo ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ turkcell-bt-java-demo ---
+[INFO] 
+[INFO] --- shade:3.5.3:shade (default) @ turkcell-bt-java-demo ---
+[INFO] Including com.fasterxml.jackson.core:jackson-databind:jar:2.18.2 in the shaded jar.
+[INFO] Including com.fasterxml.jackson.core:jackson-annotations:jar:2.18.2 in the shaded jar.
+[INFO] Including com.fasterxml.jackson.core:jackson-core:jar:2.18.2 in the shaded jar.
+[WARNING] Discovered module-info.class. Shading will break its strong encapsulation.
+[WARNING] jackson-core-2.18.2.jar, turkcell-bt-java-demo-shaded.jar define 226 overlapping classes and resources: 
+[WARNING]   - META-INF.versions.11.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.BigSignificand
+[WARNING]   - META-INF.versions.11.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastDoubleSwar
+[WARNING]   - META-INF.versions.11.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastIntegerMath
+[WARNING]   - META-INF.versions.17.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastDoubleSwar
+[WARNING]   - META-INF.versions.17.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastIntegerMath
+[WARNING]   - META-INF.versions.21.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastDoubleSwar
+[WARNING]   - META-INF.versions.21.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastIntegerMath
+[WARNING]   - META-INF.versions.22.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastDoubleSwar
+[WARNING]   - META-INF.versions.22.com.fasterxml.jackson.core.internal.shaded.fdp.v2_18_2.FastIntegerMath
+[WARNING]   - META-INF/FastDoubleParser-LICENSE
+[WARNING]   - 216 more...
+[WARNING] jackson-databind-2.18.2.jar, turkcell-bt-java-demo-shaded.jar define 792 overlapping classes and resources: 
+[WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.properties
+[WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.xml
+[WARNING]   - META-INF/services/com.fasterxml.jackson.core.ObjectCodec
+[WARNING]   - com.fasterxml.jackson.databind.AbstractTypeResolver
+[WARNING]   - com.fasterxml.jackson.databind.AnnotationIntrospector
+[WARNING]   - com.fasterxml.jackson.databind.AnnotationIntrospector$ReferenceProperty
+[WARNING]   - com.fasterxml.jackson.databind.AnnotationIntrospector$ReferenceProperty$Type
+[WARNING]   - com.fasterxml.jackson.databind.AnnotationIntrospector$XmlExtensions
+[WARNING]   - com.fasterxml.jackson.databind.BeanDescription
+[WARNING]   - com.fasterxml.jackson.databind.BeanProperty
+[WARNING]   - 782 more...
+[WARNING] jackson-annotations-2.18.2.jar, turkcell-bt-java-demo-shaded.jar define 75 overlapping classes and resources: 
+[WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.properties
+[WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.xml
+[WARNING]   - com.fasterxml.jackson.annotation.JacksonAnnotation
+[WARNING]   - com.fasterxml.jackson.annotation.JacksonAnnotationValue
+[WARNING]   - com.fasterxml.jackson.annotation.JacksonAnnotationsInside
+[WARNING]   - com.fasterxml.jackson.annotation.JacksonInject
+[WARNING]   - com.fasterxml.jackson.annotation.JacksonInject$Value
+[WARNING]   - com.fasterxml.jackson.annotation.JsonAlias
+[WARNING]   - com.fasterxml.jackson.annotation.JsonAnyGetter
+[WARNING]   - com.fasterxml.jackson.annotation.JsonAnySetter
+[WARNING]   - 65 more...
+[WARNING] jackson-annotations-2.18.2.jar, jackson-core-2.18.2.jar, jackson-databind-2.18.2.jar, turkcell-bt-java-demo-shaded.jar define 3 overlapping resources: 
+[WARNING]   - META-INF/LICENSE
+[WARNING]   - META-INF/MANIFEST.MF
+[WARNING]   - META-INF/NOTICE
+[WARNING] jackson-core-2.18.2.jar, jackson-databind-2.18.2.jar, turkcell-bt-java-demo-shaded.jar define 1 overlapping classes: 
+[WARNING]   - META-INF.versions.9.module-info
+[WARNING] maven-shade-plugin has detected that some files are
+[WARNING] present in two or more JARs. When this happens, only one
+[WARNING] single version of the file is copied to the uber jar.
+[WARNING] Usually this is not harmful and you can skip these warnings,
+[WARNING] otherwise try to manually exclude artifacts based on
+[WARNING] mvn dependency:tree -Ddetail=true and the above output.
+[WARNING] See https://maven.apache.org/plugins/maven-shade-plugin/
+[INFO] Replacing original artifact with shaded artifact.
+[INFO] Replacing <workspace>\java\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar with <workspace>\java\turkcell-bt-java-lib\target\turkcell-bt-java-demo-1.0.0-shaded.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.736 s
+[INFO] Finished at: 2026-04-16T23:08:27+03:00
+[INFO] ------------------------------------------------------------------------

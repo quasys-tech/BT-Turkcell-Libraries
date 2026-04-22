@@ -1,49 +1,40 @@
-// using Microsoft.Extensions.Configuration;
-// using Microsoft.Extensions.DependencyInjection;
-// using Microsoft.Extensions.Hosting;
-// using Turkcell.BT.Dotnet.Lib;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-// Console.WriteLine("====================================================");
-// Console.WriteLine("🚀 TURKCELL BEYONDTRUST .NET POC (Proof of Concept)");
-// Console.WriteLine("====================================================");
+namespace Turkcell.BT.Dotnet.Demo;
 
-// var builder = Host.CreateApplicationBuilder(args);
+internal static class POC
+{
+    public static async Task Main(string[] args)
+    {
+        var builder = Host.CreateApplicationBuilder(args);
+        builder.Configuration.AddBeyondTrustSecrets();
 
-// // ⭐ SIHIRLI SATIR: Environment değişkenlerini otomatik okur ve servisi bağlar.
-// builder.Configuration.AddBeyondTrustSecrets(); 
+        using var host = builder.Build();
+        var configuration = host.Services.GetRequiredService<IConfiguration>();
 
-// var host = builder.Build();
-// var config = host.Services.GetRequiredService<IConfiguration>();
+        var exampleAccountKey = (Environment.GetEnvironmentVariable("BT_EXAMPLE_ACCOUNT") ?? string.Empty).Trim();
+        var exampleSafePasswordKey = (Environment.GetEnvironmentVariable("BT_EXAMPLE_SAFE_PASSWORD") ?? string.Empty).Trim();
+        var exampleSafeUsernameKey = (Environment.GetEnvironmentVariable("BT_EXAMPLE_SAFE_USERNAME") ?? string.Empty).Trim();
 
-// // ConfigMap'ten izlenecek örnek keyleri alıyoruz
-// var targetAccKey  = Environment.GetEnvironmentVariable("BT_EXAMPLE_ACCOUNT") ?? "bt.acc.default.account";
-// var targetSafeKey = Environment.GetEnvironmentVariable("BT_EXAMPLE_SAFE_PASSWORD") ?? "bt.safe.default.password";
+        var previousOutput = string.Empty;
 
-// Console.WriteLine($"🔍 İzlenen Account: {targetAccKey}");
-// Console.WriteLine($"🔍 İzlenen Safe   : {targetSafeKey}\n");
+        while (true)
+        {
+            var currentOutput = $"""
+                Managed Account Sample ({exampleAccountKey}) = {configuration[exampleAccountKey]}
+                Secret Safe Password Sample ({exampleSafePasswordKey}) = {configuration[exampleSafePasswordKey]}
+                Secret Safe Username Sample ({exampleSafeUsernameKey}) = {configuration[exampleSafeUsernameKey]}
+                """;
 
-// string? lastAccValue = null;
-// string? lastSafeValue = null;
+            if (!string.Equals(previousOutput, currentOutput, StringComparison.Ordinal))
+            {
+                Console.Write(currentOutput);
+                previousOutput = currentOutput;
+            }
 
-// while (true)
-// {
-//     var currentAccValue  = config[targetAccKey] ?? "YOK";
-//     var currentSafeValue = config[targetSafeKey] ?? "YOK";
-
-//     if (currentAccValue != lastAccValue || currentSafeValue != lastSafeValue)
-//     {
-//         Console.WriteLine($"\n🔔 [{DateTime.Now:HH:mm:ss}] VERİ GÜNCELLENDİ!");
-//         Console.WriteLine($" 🛡️  Account: {currentAccValue}");
-//         Console.WriteLine($" 🔑 Safe   : {currentSafeValue}");
-//         Console.WriteLine("--------------------------------------------------");
-
-//         lastAccValue = currentAccValue;
-//         lastSafeValue = currentSafeValue;
-//     }
-//     else
-//     {
-//         Console.Write("."); 
-//     }
-
-//     await Task.Delay(5000); 
-// }
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+    }
+}

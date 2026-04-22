@@ -1,170 +1,83 @@
-# Turkcell BeyondTrust Java Library - USAGE
+# Java Usage
 
-Bu dokuman, library kurumsal Artifactory'ye deploy edildikten sonra uygulama ekiplerinin
-Maven ile paketi nasil import edecegini ve nasil kullanacagini adim adim anlatir.
+## Önerilen Entegrasyon Akışı
 
-Not: Asagidaki URL, user, token, repo id degerleri ornektir.
+1. Library'yi Artifactory üzerinden Maven dependency olarak ekleyin.
+2. Uygulama başlangıcında BeyondTrust environment variable'larını verin.
+3. `BeyondTrustConfigurationManager.createAndLoad()` ile manager'ı oluşturun.
+4. Uygulama içinde canonical `bt.*` key'leri üzerinden değerleri okuyun.
 
-## 1. Gereken Bilgiler
-
-Deploy sonrasi su bilgiler gerekir:
-
-- Artifactory Maven repository URL
-- Artifactory kullanici adi veya service account
-- Artifactory Access Token/API Key
-- Kullanilacak library versiyonu (`<VERSION>`)
-
-Artifact:
-
-- `groupId`: `com.turkcell.bt.java`
-- `artifactId`: `turkcell-bt-java-lib`
-
-## 2. `settings.xml` ile Artifactory Yetkilendirme
-
-`~/.m2/settings.xml` dosyasina server bilgisi ekleyin:
-
-```xml
-<settings>
-  <servers>
-    <server>
-      <id>turkcell-artifactory</id>
-      <username>${env.ARTIFACTORY_USER}</username>
-      <password>${env.ARTIFACTORY_TOKEN}</password>
-    </server>
-  </servers>
-</settings>
-```
-
-Opsiyonel: Ortam degiskenleri yerine dogrudan deger yazabilirsiniz.
-
-## 3. `pom.xml`'e Repository ve Dependency Ekleme
-
-Consumer proje `pom.xml`:
+## Artifactory Örneği
 
 ```xml
 <repositories>
   <repository>
-    <id>turkcell-artifactory</id>
-    <url>https://<ARTIFACTORY_HOST>/artifactory/<MAVEN_REPO></url>
+    <id>bt-artifactory</id>
+    <url>https://<ARTIFACTORY_HOST>/artifactory/<MAVEN_REPO_KEY></url>
   </repository>
 </repositories>
 
-<dependencies>
-  <dependency>
-    <groupId>com.turkcell.bt.java</groupId>
-    <artifactId>turkcell-bt-java-lib</artifactId>
-    <version><VERSION></version>
-  </dependency>
-</dependencies>
+<dependency>
+  <groupId>com.turkcell.bt.java</groupId>
+  <artifactId>turkcell-bt-java-lib</artifactId>
+  <version><VERSION></version>
+</dependency>
 ```
 
-Kontrol:
-
-```bash
-mvn -U clean test
-```
-
-## 4. Uygulamada Kullanim
-
-En kolay yol `createAndLoad()`:
+## Minimal Kod
 
 ```java
-import com.turkcell.bt.java.BeyondTrustConfigurationManager;
-
-try (var manager = BeyondTrustConfigurationManager.createAndLoad()) {
-    String dbPass = manager.getProperty("bt.acc.Server1.root");
-    String apiPass = manager.getProperty("bt.safe.TeamDev.ApiSecret.password");
+try (BeyondTrustConfigurationManager manager = BeyondTrustConfigurationManager.createAndLoad()) {
+    String managedPassword = manager.getProperty("bt.acc.MySystem.MyAccount");
+    String safePassword = manager.getProperty("bt.safe.MyFolder.MyTitle.password");
+    String safeUsername = manager.getProperty("bt.safe.MyFolder.MyTitle.username");
 }
 ```
 
-Key formatlari:
+## Zorunlu Ayarlar
 
-- Managed Account: `bt.acc.{SystemName}.{AccountName}`
-- Secret Safe Password: `bt.safe.{Folder}.{Title}.password`
-- Secret Safe Username: `bt.safe.{Folder}.{Title}.username`
+- `BEYONDTRUST_ENABLED=true`
+- `BEYONDTRUST_API_URL=https://pam.example.com/BeyondTrust/api/public/v3`
+- `BEYONDTRUST_USE_APP_USER=true` veya `false`
+- `OAuth` için: `BEYONDTRUST_CLIENT_ID`, `BEYONDTRUST_CLIENT_SECRET`
+- `Classic API` için: `BEYONDTRUST_API_KEY`, opsiyonel `BEYONDTRUST_RUNAS_USER`
+- Yüklenecek hedefler için: `BEYONDTRUST_MANAGED_ACCOUNTS` ve/veya `BEYONDTRUST_SECRET_SAFE_PATHS`
 
-## 5. Environment Degiskenlerini Verme
+## POC ile Hızlı Doğrulama
 
-Iki auth modu vardir.
+`POC`, sadece seçilen 3 örnek key'i yazar, refresh açıksa süreç açık kalır ve çıktı değiştiğinde blok halinde tekrar basar.
 
-### A) App User (Default/Onerilen)
+Classic API:
 
-```env
-BEYONDTRUST_ENABLED=true
-BEYONDTRUST_API_URL=https://<PAM_HOST>/BeyondTrust/api/public/v3
-BEYONDTRUST_USE_APP_USER=true
-BEYONDTRUST_CLIENT_ID=<CLIENT_ID>
-BEYONDTRUST_CLIENT_SECRET=<CLIENT_SECRET>
-BT_REFRESH_TIME=300
-BEYONDTRUST_SECRET_SAFE_PATHS=TEAM_DEV,TEAM_TEST
-BEYONDTRUST_MANAGED_ACCOUNTS=Server1.root;Server2.admin
-BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED=false
+```powershell
+. .\turkcell-bt-java-lib\examples\env\windows-apikey.ps1.sample
+mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
+java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-### B) API Key (Legacy)
+OAuth:
 
-```env
-BEYONDTRUST_ENABLED=true
-BEYONDTRUST_API_URL=https://<PAM_HOST>/BeyondTrust/api/public/v3
-BEYONDTRUST_USE_APP_USER=false
-BEYONDTRUST_API_KEY=key=<API_KEY>; runas=<RUNAS_USER>;
-BT_REFRESH_TIME=300
-BEYONDTRUST_SECRET_SAFE_PATHS=TEAM_DEV,TEAM_TEST
-BEYONDTRUST_MANAGED_ACCOUNTS=Server1.root;Server2.admin
-BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED=false
+```powershell
+. .\turkcell-bt-java-lib\examples\env\windows-oauth.ps1.sample
+mvn -f .\turkcell-bt-java-lib\pom-demo.xml -DskipTests package
+java -jar .\turkcell-bt-java-lib\target\turkcell-bt-java-demo-shaded.jar
 ```
 
-Not:
+Demo helper key'leri:
 
-- Java tarafinda refresh env anahtari `BT_REFRESH_TIME` olarak kullanilir.
-- Env verilmezse default refresh `1800` saniyedir.
+- `BT_EXAMPLE_ACCOUNT=bt.acc.MySystem.MyAccount`
+- `BT_EXAMPLE_SAFE_PASSWORD=bt.safe.MyFolder.MyTitle.password`
+- `BT_EXAMPLE_SAFE_USERNAME=bt.safe.MyFolder.MyTitle.username`
 
-## 6. Kubernetes/OpenShift Kullanim Onerisi
+## Kubernetes
 
-- Secret degerlerini (`CLIENT_SECRET`, `API_KEY`) Kubernetes `Secret` icinde tutun.
-- Non-sensitive ayarlari `ConfigMap` icine koyun.
+Önerilen manifest setleri:
 
-Ornek:
+- `Classic API`: [turkcell-bt-java-lib/k8s/apikey-configmap.yml](turkcell-bt-java-lib/k8s/apikey-configmap.yml), [turkcell-bt-java-lib/k8s/apikey-secret.yml](turkcell-bt-java-lib/k8s/apikey-secret.yml), [turkcell-bt-java-lib/k8s/apikey-deployment.yml](turkcell-bt-java-lib/k8s/apikey-deployment.yml)
+- `OAuth`: [turkcell-bt-java-lib/k8s/oauth-configmap.yml](turkcell-bt-java-lib/k8s/oauth-configmap.yml), [turkcell-bt-java-lib/k8s/oauth-secret.yml](turkcell-bt-java-lib/k8s/oauth-secret.yml), [turkcell-bt-java-lib/k8s/oauth-deployment.yml](turkcell-bt-java-lib/k8s/oauth-deployment.yml)
 
-```yaml
-envFrom:
-  - configMapRef:
-      name: bt-java-config
-  - secretRef:
-      name: bt-java-secret
-```
+## Operasyon Notları
 
-## 7. CI/CD Pipeline Onerisi
-
-Consumer projelerde pipeline sirasiyla:
-
-1. `settings.xml` ve credentials enjekte et
-2. `mvn -U dependency:resolve`
-3. `mvn clean package`
-4. Runtime env degiskenlerini deployment asamasinda ver
-
-## 8. Hizli Dogrulama
-
-Calisan uygulamada bilinen bir key ile kontrol edin:
-
-```java
-String value = manager.getProperty("bt.acc.Server1.root");
-```
-
-Beklenen:
-
-- `null` degilse entegrasyon calisiyor.
-- Yenileme araligi sonunda yeni degerler alinabiliyor.
-
-## 9. SIK Hatalar
-
-- `Konfigurasyon eksik`: URL veya secili auth moduna ait env degiskenleri eksik.
-- `OAuth access token not found`: Token endpoint cevabi beklenen formatta degil.
-- `null` degeri: Key ismi ile hedef account/safe eslesmiyor.
-
-## 10. Guvenlik Notlari
-
-- Secret degerlerini source code icine yazmayin.
-- Token ve secret'lari repository'ye commit etmeyin.
-- App User icin minimum yetki prensibini uygulayin.
-- Duzenli credential rotasyonu yapin.
+- Normal kullanımda per-refresh başarı logu basılmaz.
+- Daha detaylı log gerekiyorsa geçici olarak `BEYONDTRUST_DEBUG=true` kullanılabilir.
+- Refresh ayarı için canonical parametre `BEYONDTRUST_REFRESH_INTERVAL`'dır.

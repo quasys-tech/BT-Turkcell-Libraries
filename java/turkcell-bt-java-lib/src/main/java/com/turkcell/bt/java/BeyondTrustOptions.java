@@ -3,6 +3,8 @@ package com.turkcell.bt.java;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class BeyondTrustOptions {
+    private static final int DEFAULT_REFRESH_INTERVAL_SECONDS = 1800;
+
     @JsonProperty("BEYONDTRUST_ENABLED")
     private boolean enabled = true;
 
@@ -13,7 +15,8 @@ public class BeyondTrustOptions {
     private String apiKey = "";
 
     @JsonProperty("BEYONDTRUST_USE_APP_USER")
-    private boolean useAppUser = true;
+    private boolean useAppUser = false;
+    private boolean useAppUserConfigured = false;
 
     @JsonProperty("BEYONDTRUST_CLIENT_ID")
     private String clientId;
@@ -25,24 +28,26 @@ public class BeyondTrustOptions {
     private String runAsUser;
 
     @JsonProperty("BEYONDTRUST_IGNORE_SSL_ERRORS")
-    private boolean ignoreSslErrors = false;
+    private boolean ignoreSslErrors;
 
-    @JsonProperty("BT_REFRESH_TIME")
-    private int refreshIntervalSeconds = 1800;
+    @JsonProperty("BEYONDTRUST_CERTIFICATE_CONTENT")
+    private String certificateContent;
+
+    @JsonProperty("BEYONDTRUST_REFRESH_INTERVAL")
+    private int refreshIntervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
 
     @JsonProperty("BEYONDTRUST_MANAGED_ACCOUNTS")
     private String managedAccounts;
 
     @JsonProperty("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED")
-    private boolean allManagedAccountsEnabled = false;
+    private boolean allManagedAccountsEnabled;
 
     @JsonProperty("BEYONDTRUST_SECRET_SAFE_PATHS")
     private String secretSafePaths;
 
     @JsonProperty("BEYONDTRUST_ALL_SECRETS_ENABLED")
-    private boolean allSecretsEnabled = false;
+    private boolean allSecretsEnabled;
 
-    // --- GETTER & SETTER ---
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public String getApiUrl() { return apiUrl; }
@@ -50,7 +55,11 @@ public class BeyondTrustOptions {
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
     public boolean isUseAppUser() { return useAppUser; }
-    public void setUseAppUser(boolean useAppUser) { this.useAppUser = useAppUser; }
+    public void setUseAppUser(boolean useAppUser) {
+        this.useAppUser = useAppUser;
+        this.useAppUserConfigured = true;
+    }
+    boolean isUseAppUserConfigured() { return useAppUserConfigured; }
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
     public String getClientSecret() { return clientSecret; }
@@ -59,6 +68,8 @@ public class BeyondTrustOptions {
     public void setRunAsUser(String runAsUser) { this.runAsUser = runAsUser; }
     public boolean isIgnoreSslErrors() { return ignoreSslErrors; }
     public void setIgnoreSslErrors(boolean ignoreSslErrors) { this.ignoreSslErrors = ignoreSslErrors; }
+    public String getCertificateContent() { return certificateContent; }
+    public void setCertificateContent(String certificateContent) { this.certificateContent = certificateContent; }
     public int getRefreshIntervalSeconds() { return refreshIntervalSeconds; }
     public void setRefreshIntervalSeconds(int refreshIntervalSeconds) { this.refreshIntervalSeconds = refreshIntervalSeconds; }
     public String getManagedAccounts() { return managedAccounts; }
@@ -70,43 +81,89 @@ public class BeyondTrustOptions {
     public boolean isAllSecretsEnabled() { return allSecretsEnabled; }
     public void setAllSecretsEnabled(boolean allSecretsEnabled) { this.allSecretsEnabled = allSecretsEnabled; }
 
-    // --- SİHİRLİ METOT: ENV OKUYUCU ---
-    // ConfigMap'ten gelen değerleri otomatik okuyup nesneyi oluşturur.
     public static BeyondTrustOptions fromEnv() {
         BeyondTrustOptions options = new BeyondTrustOptions();
-
-        // String Değerler (Null gelebilir, kütüphane içinde null check var)
-        options.setApiUrl(System.getenv("BEYONDTRUST_API_URL"));
-        options.setApiKey(System.getenv("BEYONDTRUST_API_KEY"));
-        options.setClientId(System.getenv("BEYONDTRUST_CLIENT_ID"));
-        options.setClientSecret(System.getenv("BEYONDTRUST_CLIENT_SECRET"));
-        options.setRunAsUser(System.getenv("BEYONDTRUST_RUNAS_USER"));
-        options.setManagedAccounts(System.getenv("BEYONDTRUST_MANAGED_ACCOUNTS"));
-        options.setSecretSafePaths(System.getenv("BEYONDTRUST_SECRET_SAFE_PATHS"));
-
-        // Boolean Değerler
-        // ENABLED varsayılan olarak true olsun istiyorsak:
-        String enabledEnv = System.getenv("BEYONDTRUST_ENABLED");
-        options.setEnabled(enabledEnv == null || Boolean.parseBoolean(enabledEnv));
-
-        options.setIgnoreSslErrors(Boolean.parseBoolean(System.getenv("BEYONDTRUST_IGNORE_SSL_ERRORS")));
-        String useAppUserEnv = System.getenv("BEYONDTRUST_USE_APP_USER");
-        if (useAppUserEnv != null && !useAppUserEnv.isBlank()) {
-            options.setUseAppUser(Boolean.parseBoolean(useAppUserEnv));
+        options.setEnabled(readBoolean("BEYONDTRUST_ENABLED", true));
+        options.setApiUrl(readString("BEYONDTRUST_API_URL"));
+        options.setApiKey(readString("BEYONDTRUST_API_KEY"));
+        Boolean useAppUser = readExplicitBoolean("BEYONDTRUST_USE_APP_USER");
+        if (useAppUser != null) {
+            options.setUseAppUser(useAppUser);
         }
-        options.setAllManagedAccountsEnabled(Boolean.parseBoolean(System.getenv("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED")));
-        options.setAllSecretsEnabled(Boolean.parseBoolean(System.getenv("BEYONDTRUST_ALL_SECRETS_ENABLED")));
-
-        // Integer Değerler (Güvenli Parse)
-        String refreshEnv = System.getenv("BT_REFRESH_TIME");
-        if (refreshEnv != null && !refreshEnv.isBlank()) {
-            try {
-                options.setRefreshIntervalSeconds(Integer.parseInt(refreshEnv));
-            } catch (NumberFormatException ignored) {
-                // Parse edilemezse varsayılan (1800) kalır.
-            }
-        }
-
+        options.setClientId(readString("BEYONDTRUST_CLIENT_ID"));
+        options.setClientSecret(readString("BEYONDTRUST_CLIENT_SECRET"));
+        options.setRunAsUser(readString("BEYONDTRUST_RUNAS_USER"));
+        options.setIgnoreSslErrors(readBoolean("BEYONDTRUST_IGNORE_SSL_ERRORS", false));
+        options.setCertificateContent(readString("BEYONDTRUST_CERTIFICATE_CONTENT"));
+        options.setManagedAccounts(readString("BEYONDTRUST_MANAGED_ACCOUNTS"));
+        options.setAllManagedAccountsEnabled(readBoolean("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", false));
+        options.setSecretSafePaths(readString("BEYONDTRUST_SECRET_SAFE_PATHS"));
+        options.setAllSecretsEnabled(readBoolean("BEYONDTRUST_ALL_SECRETS_ENABLED", false));
+        options.setRefreshIntervalSeconds(readRefreshInterval());
         return options;
+    }
+
+    static String readString(String key) {
+        if (System.getProperties().containsKey(key)) {
+            return System.getProperty(key);
+        }
+
+        return System.getenv(key);
+    }
+
+    private static boolean readBoolean(String key, boolean defaultValue) {
+        String value = readString(key);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        String normalized = value.trim();
+        if ("true".equalsIgnoreCase(normalized) || "false".equalsIgnoreCase(normalized)) {
+            return Boolean.parseBoolean(normalized);
+        }
+
+        throw new IllegalArgumentException("Invalid " + key + " value. Expected 'true' or 'false'.");
+    }
+
+    private static Boolean readExplicitBoolean(String key) {
+        String value = readString(key);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        if ("true".equalsIgnoreCase(normalized) || "false".equalsIgnoreCase(normalized)) {
+            return Boolean.parseBoolean(normalized);
+        }
+
+        throw new IllegalArgumentException("Invalid " + key + " value. Expected 'true' or 'false'.");
+    }
+
+    private static int readRefreshInterval() {
+        String canonicalValue = readString("BEYONDTRUST_REFRESH_INTERVAL");
+        if (canonicalValue != null && !canonicalValue.isBlank()) {
+            Integer parsed = tryParseInteger(canonicalValue);
+            if (parsed != null) {
+                return parsed;
+            }
+
+            throw new IllegalArgumentException("Invalid BEYONDTRUST_REFRESH_INTERVAL value. Expected an integer number of seconds.");
+        }
+
+        String legacyValue = readString("BT_REFRESH_TIME");
+        if (legacyValue != null && !legacyValue.isBlank()) {
+            Integer parsed = tryParseInteger(legacyValue);
+            return parsed != null ? parsed : DEFAULT_REFRESH_INTERVAL_SECONDS;
+        }
+
+        return DEFAULT_REFRESH_INTERVAL_SECONDS;
+    }
+
+    private static Integer tryParseInteger(String rawValue) {
+        try {
+            return Integer.parseInt(rawValue.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }

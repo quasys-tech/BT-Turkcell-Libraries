@@ -15,7 +15,6 @@ class ManagedAccountDto {
     @JsonProperty("AccountName")
     private String accountName = "";
 
-    // Getter ve Setter'lar
     public int getSystemId() { return systemId; }
     public void setSystemId(int systemId) { this.systemId = systemId; }
     public String getSystemName() { return systemName; }

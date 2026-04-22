@@ -1,83 +1,168 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Turkcell.BT.Dotnet.Lib; // Kütüphanen burası
+// using Microsoft.Extensions.Configuration;
+// using Microsoft.Extensions.DependencyInjection;
+// using Microsoft.Extensions.Hosting;
+// using Turkcell.BT.Dotnet.Demo;
 
-Console.WriteLine("====================================================");
-Console.WriteLine("🚀 TURKCELL BEYONDTRUST PAM LIBRARY - LIVE DEMO");
-Console.WriteLine("====================================================");
+// using IHost host = BuildHost(args);
 
-// 1. Manuel Test Ortamı (Müşteride burası env veya appsettings olacak)
-SetEnvironmentVariables();
+// var configuration = host.Services.GetRequiredService<IConfiguration>();
+// var cancellationTokenSource = new CancellationTokenSource();
+// Console.CancelKeyPress += (_, eventArgs) =>
+// {
+//     eventArgs.Cancel = true;
+//     cancellationTokenSource.Cancel();
+// };
 
-// 2. Uygulama Yapılandırması
-var builder = Host.CreateApplicationBuilder(args);
+// PrintBanner(configuration);
+// POC.PrintMinimalIntegrationExample();
 
-// --- Kütüphaneyi Takıyoruz ---
-builder.Configuration.AddBeyondTrustSecrets(); 
-// -----------------------------
+// var refreshInterval = ResolveRefreshInterval(configuration);
+// var previousSnapshotHash = string.Empty;
 
-var host = builder.Build();
-var config = host.Services.GetRequiredService<IConfiguration>();
+// do
+// {
+//     var snapshot = GetBeyondTrustSnapshot(configuration);
+//     var currentSnapshotHash = string.Join("|", snapshot.Select(pair => $"{pair.Key}={pair.Value}"));
 
-Console.WriteLine("🚀 Uygulama Başladı. Şifreler izleniyor...");
-Console.WriteLine("ℹ️  Refresh süresi: 20 saniye.\n");
+//     if (!string.Equals(previousSnapshotHash, currentSnapshotHash, StringComparison.Ordinal))
+//     {
+//         Console.WriteLine();
+//         Console.WriteLine($"[{DateTimeOffset.Now:HH:mm:ss}] Snapshot updated. {snapshot.Count} BeyondTrust key(s) loaded.");
+//         PrintAllKeys(snapshot);
+//         PrintSampleValues(configuration, snapshot);
+//         previousSnapshotHash = currentSnapshotHash;
+//     }
 
-// Başlangıçta yüklü keyleri görelim
-PrintAllBeyondTrustKeys(config);
+//     if (refreshInterval <= 0)
+//     {
+//         break;
+//     }
 
-// 3. İZLEME DÖNGÜSÜ
-var lastDbPass = "";
-var lastApiPass = "";
+//     try
+//     {
+//         await Task.Delay(TimeSpan.FromSeconds(2), cancellationTokenSource.Token);
+//     }
+//     catch (OperationCanceledException)
+//     {
+//         break;
+//     }
+// }
+// while (!cancellationTokenSource.IsCancellationRequested);
 
-while (true)
-{
-    // config[...] üzerinden her zaman en taze veriyi çekiyoruz
-    //var currentDbPass = config["bt.acc.dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB"] ?? "YOK";
-    var currentDbPass = config["bt.acc.EC2AMAZ-D6OKDG1.deneme"] ?? "YOK";
-    
-    var currentApiPass = config["bt.safe.ENES_SC_DEMO_DEV.testtypesecret1.password"] ?? "YOK";
+// return;
 
-    if (currentDbPass != lastDbPass || currentApiPass != lastApiPass)
-    {
-        Console.WriteLine($"\n🔄 [{DateTime.Now:HH:mm:ss}] DEĞİŞİKLİK VEYA İLK YÜKLEME ALGILANDI!");
-        Console.WriteLine($"   📦 DB Pass : {currentDbPass}");
-        Console.WriteLine($"   📦 API Pass: {currentApiPass}");
+// static IHost BuildHost(string[] args)
+// {
+//     var builder = Host.CreateApplicationBuilder(args);
+//     builder.Configuration.AddBeyondTrustSecrets();
+//     return builder.Build();
+// }
 
-        lastDbPass = currentDbPass;
-        lastApiPass = currentApiPass;
-    }
-    else
-    {
-        Console.Write("."); // Yaşadığını belirtmek için nokta basar
-    }
+// static void PrintBanner(IConfiguration configuration)
+// {
+//     Console.WriteLine("============================================================");
+//     Console.WriteLine("DEMO ONLY - RAW SECRET LOGGING ENABLED - DO NOT USE THIS LOGGING STYLE IN PRODUCTION");
+//     Console.WriteLine("============================================================");
+//     Console.WriteLine($"Auth Mode : {(ResolveAuthMode(configuration) ? "OAuth / App User" : "Classic API")}");
+//     Console.WriteLine($"API Url   : {configuration["BEYONDTRUST_API_URL"] ?? "<not configured>"}");
+//     Console.WriteLine($"Refresh   : {ResolveRefreshInterval(configuration)} second(s)");
+//     Console.WriteLine();
+// }
 
-    await Task.Delay(2000); 
-}
+// static bool ResolveAuthMode(IConfiguration configuration)
+// {
+//     return bool.TryParse(configuration["BEYONDTRUST_USE_APP_USER"], out var useAppUser) && useAppUser;
+// }
 
-void PrintAllBeyondTrustKeys(IConfiguration configuration)
-{
-    Console.WriteLine("\n--- 🛡️  BEYONDTRUST LOADED KEYS ---");
-    var btKeys = configuration.AsEnumerable()
-        .Where(x => x.Key.StartsWith("bt.", StringComparison.OrdinalIgnoreCase))
-        .OrderBy(x => x.Key);
+// static int ResolveRefreshInterval(IConfiguration configuration)
+// {
+//     return int.TryParse(configuration["BEYONDTRUST_REFRESH_INTERVAL"] ?? configuration["BT_REFRESH_TIME"], out var refreshInterval)
+//         ? refreshInterval
+//         : 1800;
+// }
 
-    foreach (var kvp in btKeys)
-    {
-        Console.WriteLine($"🔑 {kvp.Key} = {kvp.Value}");
-    }
-    Console.WriteLine("----------------------------------\n");
-}
+// static IReadOnlyList<KeyValuePair<string, string?>> GetBeyondTrustSnapshot(IConfiguration configuration)
+// {
+//     return configuration.AsEnumerable()
+//         .Where(pair => pair.Key.StartsWith("bt.", StringComparison.OrdinalIgnoreCase))
+//         .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+//         .ToList();
+// }
 
-void SetEnvironmentVariables()
-{
-    Environment.SetEnvironmentVariable("BEYONDTRUST_REFRESH_INTERVAL", "5"); 
-    Environment.SetEnvironmentVariable("BEYONDTRUST_API_URL", "https://pam.quasys.com.tr/BeyondTrust/api/public/v3");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_API_KEY", "b26a593fdf632aa951d69004f8531d99b5bc53c06c83607ef9d09f711d55a9221890a10cce3ad17af906f389424a6a07028be31fcabf4d1a00dfa21fef72f2f4; runas=enes;");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_ENABLED", "true");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_SECRET_SAFE_PATHS", "ENES_SC_DEMO_DEV,ENES_SC_DEMO_TEST");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_MANAGED_ACCOUNTS", "dnsname (Db Instance: dbname, Port:1521).MA_EMPTYDB;EC2AMAZ-D6OKDG1.deneme");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_ALL_MANAGED_ACCOUNTS_ENABLED", "true");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_IGNORE_SSL_ERRORS", "true");
-    Environment.SetEnvironmentVariable("BEYONDTRUST_USE_APP_USER", "false");
-}
+// static void PrintAllKeys(IReadOnlyList<KeyValuePair<string, string?>> snapshot)
+// {
+//     Console.WriteLine("--- Loaded bt.* keys ---");
+
+//     if (snapshot.Count == 0)
+//     {
+//         Console.WriteLine("No BeyondTrust keys are currently available. Check the required environment variables and API connectivity.");
+//     }
+//     else
+//     {
+//         foreach (var pair in snapshot)
+//         {
+//             Console.WriteLine($"{pair.Key} = {pair.Value}");
+//         }
+//     }
+
+//     Console.WriteLine("------------------------");
+// }
+
+// static void PrintSampleValues(IConfiguration configuration, IReadOnlyList<KeyValuePair<string, string?>> snapshot)
+// {
+//     var snapshotMap = snapshot.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+//     var lines = DemoExampleOutput.BuildExampleOutputLines(
+//         snapshotMap,
+//         configuration["BT_EXAMPLE_ACCOUNT"],
+//         configuration["BT_EXAMPLE_SAFE_PASSWORD"],
+//         configuration["BT_EXAMPLE_SAFE_USERNAME"]);
+
+//     foreach (var line in lines)
+//     {
+//         Console.WriteLine(line);
+//     }
+// }
+
+// namespace Turkcell.BT.Dotnet.Demo
+// {
+//     public static class DemoExampleOutput
+//     {
+//         public static IReadOnlyList<string> BuildExampleOutputLines(
+//             IReadOnlyDictionary<string, string?> snapshot,
+//             string? exampleAccountKey,
+//             string? exampleSafePasswordKey,
+//             string? exampleSafeUsernameKey)
+//         {
+//             var lines = new List<string>();
+
+//             AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_ACCOUNT", "example account", "Managed Account Sample", exampleAccountKey);
+//             AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_PASSWORD", "example password", "Secret Safe Password Sample", exampleSafePasswordKey);
+//             AppendExampleOutput(lines, snapshot, "BT_EXAMPLE_SAFE_USERNAME", "example username", "Secret Safe Username Sample", exampleSafeUsernameKey);
+
+//             return lines;
+//         }
+
+//         private static void AppendExampleOutput(
+//             ICollection<string> lines,
+//             IReadOnlyDictionary<string, string?> snapshot,
+//             string parameterName,
+//             string friendlyName,
+//             string sampleLabel,
+//             string? configuredKey)
+//         {
+//             if (string.IsNullOrWhiteSpace(configuredKey))
+//             {
+//                 lines.Add($"{parameterName} not set; skipping {friendlyName} output");
+//                 return;
+//             }
+
+//             if (!snapshot.TryGetValue(configuredKey, out var value))
+//             {
+//                 lines.Add($"Demo example key not found: {configuredKey}");
+//                 return;
+//             }
+
+//             lines.Add($"{sampleLabel} ({configuredKey}) = {value}");
+//         }
+//     }
+// }

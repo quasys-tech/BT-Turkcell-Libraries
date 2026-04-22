@@ -1,102 +1,99 @@
-using Xunit;
-using Turkcell.BT.Dotnet.Lib;
 using Microsoft.Extensions.Configuration;
+using Turkcell.BT.Dotnet.Lib;
 
 namespace Turkcell.BT.Dotnet.Tests;
 
-public class BeyondTrustConfigurationProviderTests
+public sealed class BeyondTrustConfigurationProviderTests
 {
     [Fact]
-    public void Source_Build_ShouldReturnProvider()
+    public void Source_Build_ReturnsProvider()
     {
-        // Arrange
-        var options = new BeyondTrustOptions { ApiKey = "test" };
-        var source = new BeyondTrustConfigurationSource(options);
+        var source = new BeyondTrustConfigurationSource(new BeyondTrustOptions());
 
-        // Act
         var provider = source.Build(new ConfigurationBuilder());
 
-        // Assert
-        Assert.NotNull(provider);
         Assert.IsType<BeyondTrustConfigurationProvider>(provider);
     }
 
     [Fact]
-    public void Load_WhenDisabled_DoesNothing_AndDoesNotStartTimer()
+    public void Load_WhenDisabled_DoesNotStartTimer()
     {
-        // Arrange
-        var options = new BeyondTrustOptions
-        {
-            Enabled = false,
-            ApiKey = "key=abc",
-            RefreshIntervalSeconds = 1
-        };
-        var provider = new BeyondTrustConfigurationProvider(options);
+        var provider = new BeyondTrustConfigurationProvider(
+            new BeyondTrustOptions { Enabled = false, RefreshIntervalSeconds = 1 },
+            () => Task.FromResult(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)));
 
-        // Act
         provider.Load();
 
-        // Assert
-        var timer = TestReflection.GetPrivateField<Timer>(provider, "_refreshTimer");
-        Assert.Null(timer);
+        Assert.Null(TestInfrastructure.GetPrivateField<Timer>(provider, "_refreshTimer"));
     }
 
     [Fact]
-    public void Load_WhenApiKeyMissing_ShouldStillStartTimer()
+    public void Refresh_ReplacesSnapshotAtomically_AndRemovesStaleKeys()
     {
-        // GÜNCELLEME: Yeni mimaride API Key zorunluluğu Load aşamasında kaldırıldı.
-        // Çünkü AppUser (OAuth) kullanılıyor olabilir. Bu yüzden Timer başlamalıdır.
-        
-        // Arrange
-        var options = new BeyondTrustOptions
-        {
-            Enabled = true,
-            ApiKey = "", // Key yok
-            RefreshIntervalSeconds = 1
-        };
-        var provider = new BeyondTrustConfigurationProvider(options);
+        var calls = 0;
+        var provider = new BeyondTrustConfigurationProvider(
+            new BeyondTrustOptions { Enabled = true, RefreshIntervalSeconds = 0 },
+            () =>
+            {
+                calls++;
+                return Task.FromResult(calls == 1
+                    ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["bt.acc.Sys.Account"] = "first-value",
+                        ["bt.safe.Team.Api.password"] = "first-password"
+                    }
+                    : new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["bt.acc.Sys.Account"] = "second-value"
+                    });
+            });
 
-        // Act
-        // Service içinde hata alsa bile try-catch ile yutulur, önemli olan timer'ın kurulması.
-        try { provider.Load(); } catch { }
+        provider.Load();
+        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", new object?[] { null });
 
-        // Assert
-        var timer = TestReflection.GetPrivateField<Timer>(provider, "_refreshTimer");
-        Assert.NotNull(timer); // Timer ARTIK NULL OLMAMALI
+        Assert.True(provider.TryGet("bt.acc.Sys.Account", out var accountValue));
+        Assert.Equal("second-value", accountValue);
+        Assert.False(provider.TryGet("bt.safe.Team.Api.password", out _));
     }
 
     [Fact]
-    public void Load_WhenEnabledAndHasKey_ShouldInitializeTimer()
+    public void Refresh_Failure_KeepsLastSuccessfulSnapshot()
     {
-        // Arrange
-        var options = new BeyondTrustOptions
-        {
-            Enabled = true,
-            ApiKey = "key=abc",
-            RefreshIntervalSeconds = 60
-        };
-        var provider = new BeyondTrustConfigurationProvider(options);
+        var calls = 0;
+        var provider = new BeyondTrustConfigurationProvider(
+            new BeyondTrustOptions { Enabled = true, RefreshIntervalSeconds = 0 },
+            () =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    return Task.FromResult(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["bt.acc.Sys.Account"] = "stable-value"
+                    });
+                }
 
-        // Act
-        try { provider.Load(); } catch { }
+                throw new InvalidOperationException("simulated failure");
+            });
 
-        // Assert
-        var timer = TestReflection.GetPrivateField<Timer>(provider, "_refreshTimer");
-        Assert.NotNull(timer);
+        provider.Load();
+        TestInfrastructure.InvokePrivateMethod(provider, "DoRefresh", new object?[] { null });
+
+        Assert.True(provider.TryGet("bt.acc.Sys.Account", out var accountValue));
+        Assert.Equal("stable-value", accountValue);
+        Assert.DoesNotContain("ERROR_", accountValue ?? string.Empty);
     }
 
     [Fact]
-    public void Dispose_ShouldBeSafeAndCleanupTimer()
+    public void Load_WithRefreshInterval_StartsTimer()
     {
-        // Arrange
-        var options = new BeyondTrustOptions { Enabled = true, ApiKey = "key=abc", RefreshIntervalSeconds = 10 };
-        var provider = new BeyondTrustConfigurationProvider(options);
-        try { provider.Load(); } catch { }
+        var provider = new BeyondTrustConfigurationProvider(
+            new BeyondTrustOptions { Enabled = true, RefreshIntervalSeconds = 5 },
+            () => Task.FromResult(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)));
 
-        // Act
-        var exception = Record.Exception(() => provider.Dispose());
+        provider.Load();
 
-        // Assert
-        Assert.Null(exception);
+        Assert.NotNull(TestInfrastructure.GetPrivateField<Timer>(provider, "_refreshTimer"));
+        provider.Dispose();
     }
 }

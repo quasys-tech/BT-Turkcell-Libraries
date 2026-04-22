@@ -1,0 +1,32 @@
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+
+# Java
+**/target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# Python
+**/__pycache__/
+**/.pytest_cache/
+.venv/
+**/dist/
+**/build/
+**/*.egg-info/
+.mypy_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Logs / coverage
+*.log
+coverage/
+coverage-*/
+jacoco.exec

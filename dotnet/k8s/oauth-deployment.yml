@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-dotnet-demo-oauth
+  namespace: bt-turkcell
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-dotnet-demo-oauth
+  template:
+    metadata:
+      labels:
+        app: bt-dotnet-demo-oauth
+    spec:
+      containers:
+        - name: bt-dotnet-demo-oauth
+          image: docker.io/enespekdas/btdotnet-lib:v1.5
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: bt-dotnet-demo-oauth-secret

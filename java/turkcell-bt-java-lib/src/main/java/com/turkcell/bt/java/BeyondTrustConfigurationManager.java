@@ -1,121 +1,155 @@
 package com.turkcell.bt.java;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class BeyondTrustConfigurationManager implements AutoCloseable {
 
+    @FunctionalInterface
+    interface SnapshotLoader {
+        Map<String, String> load() throws Exception;
+    }
+
     private final BeyondTrustOptions options;
-    private final Properties properties;
+    private final SnapshotLoader snapshotLoader;
+    private final AtomicReference<Map<String, String>> snapshot = new AtomicReference<>(Collections.emptyMap());
+    private final Object reloadLock = new Object();
     private ScheduledExecutorService scheduler;
 
     public BeyondTrustConfigurationManager(BeyondTrustOptions options) {
-        this.options = options;
-        this.properties = new Properties();
+        this(options, () -> {
+            try (BeyondTrustService service = new BeyondTrustService(options)) {
+                return service.fetchAllSecrets();
+            }
+        });
     }
 
-    // ==========================================================================
-    // ⭐ YENİ EKLENEN: STATIC FACTORY METHOD (ZERO CONFIG)
-    // Kullanıcı ayar yapmadan direkt bunu çağırır, ortam değişkenlerini otomatik okur.
-    // ==========================================================================
+    BeyondTrustConfigurationManager(BeyondTrustOptions options, SnapshotLoader snapshotLoader) {
+        this.options = options;
+        this.snapshotLoader = snapshotLoader;
+    }
+
     public static BeyondTrustConfigurationManager createAndLoad() {
-        // 1. Ortamdan (ConfigMap/Env) ayarları otomatik oku
-        BeyondTrustOptions envOptions = BeyondTrustOptions.fromEnv();
-
-        // 2. Manager'ı oluştur
-        BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(envOptions);
-
-        // 3. Verileri yükle ve servisi başlat
+        BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(BeyondTrustOptions.fromEnv());
         manager.load();
-
         return manager;
     }
-    // ==========================================================================
 
-    // --- BAŞLATMA VE İLK YÜKLEME ---
     public void load() {
         if (!options.isEnabled()) {
-            System.out.println("⚠️ [BeyondTrust] Kutuphane devre disi.");
+            System.out.println("[BeyondTrust] Configuration manager is disabled because BEYONDTRUST_ENABLED=false.");
             return;
         }
 
-        boolean hasUrl = options.getApiUrl() != null && !options.getApiUrl().isBlank();
-        boolean oauthReady = options.isUseAppUser()
-                && options.getClientId() != null && !options.getClientId().isBlank()
-                && options.getClientSecret() != null && !options.getClientSecret().isBlank();
-        boolean apiKeyReady = !options.isUseAppUser()
-                && options.getApiKey() != null && !options.getApiKey().isBlank();
-
-        if (!hasUrl || (!oauthReady && !apiKeyReady)) {
-            System.out.println("⚠️ [BeyondTrust] Konfigurasyon eksik. API_URL ve auth parametrelerini kontrol edin.");
-            return;
-        }
-
-        // 1. ADIM: Tek Atımlık Yükleme (One-Shot)
-        // Süre 0 olsa bile burası çalışır, veriler hafızaya alınır.
-        System.out.println("🚀 [BeyondTrust] Başlangıç verileri çekiliyor...");
-        loadDataInternal();
-
-        // 2. ADIM: Timer Kontrolü
-        long refreshTime = options.getRefreshIntervalSeconds();
-
-        if (refreshTime > 0) {
-            startRefreshTimer(refreshTime);
-            System.out.println("✅ [BeyondTrust] Otomatik yenileme AKTİF. Periyot: " + refreshTime + " saniye.");
-        } else {
-            System.out.println("🛑 [BeyondTrust] Otomatik yenileme KAPALI (Süre: 0). Sadece başlangıç verileriyle devam edilecek.");
-        }
-    }
-
-    private void loadDataInternal() {
-        // try-with-resources: Service işi bitince (http client) kapanır, kaynak tüketmez.
-        try (BeyondTrustService service = new BeyondTrustService(options)) {
-            Map<String, String> newData = service.fetchAllSecrets();
-
-            if (newData != null && !newData.isEmpty()) {
-                // Thread-safe olduğu için properties nesnesini güvenle güncelleyebiliriz
-                properties.putAll(newData);
+        List<String> missingSettings = validateRequiredSettings();
+        if (!missingSettings.isEmpty()) {
+            System.out.println("[BeyondTrust] Configuration manager was not started because required settings are missing.");
+            for (String missingSetting : missingSettings) {
+                System.out.println("[BeyondTrust] Missing setting: " + missingSetting);
             }
-        } catch (Exception ex) {
-            System.err.println("❌ [BeyondTrust] Veri yükleme hatası: " + ex.getMessage());
+            return;
+        }
+
+        synchronized (reloadLock) {
+            if (loadSnapshot("Initial load")) {
+                System.out.println("[BeyondTrust] Initial load completed. Loaded " + snapshot.get().size() + " key(s).");
+            } else {
+                System.out.println("[BeyondTrust] Initial load failed. Keeping empty configuration snapshot.");
+            }
+
+            if (options.getRefreshIntervalSeconds() > 0) {
+                startRefreshTimer(options.getRefreshIntervalSeconds());
+                System.out.println("[BeyondTrust] Background refresh enabled with " + options.getRefreshIntervalSeconds() + "s interval.");
+            } else {
+                System.out.println("[BeyondTrust] Background refresh is disabled because BEYONDTRUST_REFRESH_INTERVAL=0.");
+            }
         }
     }
 
-    private void startRefreshTimer(long period) {
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "BeyondTrust-Refresher");
-            t.setDaemon(true); // Uygulama kapanırken bu thread engellemesin
-            return t;
-        });
-
-        scheduler.scheduleAtFixedRate(
-                this::loadDataInternal,
-                period, // Initial Delay
-                period, // Period
-                TimeUnit.SECONDS
-        );
-    }
-
-    // --- VERİ OKUMA ---
     public String getProperty(String key) {
-        return properties.getProperty(key);
+        return snapshot.get().get(key);
     }
 
     public String getProperty(String key, String defaultValue) {
-        return properties.getProperty(key, defaultValue);
+        return snapshot.get().getOrDefault(key, defaultValue);
     }
 
     public Properties getAllProperties() {
+        Properties properties = new Properties();
+        properties.putAll(snapshot.get());
         return properties;
+    }
+
+    private List<String> validateRequiredSettings() {
+        List<String> missingSettings = new ArrayList<>();
+
+        if (options.getApiUrl() == null || options.getApiUrl().isBlank()) {
+            missingSettings.add("BEYONDTRUST_API_URL");
+        }
+
+        if (!options.isUseAppUserConfigured()) {
+            missingSettings.add("BEYONDTRUST_USE_APP_USER");
+        } else if (options.isUseAppUser()) {
+            if (options.getClientId() == null || options.getClientId().isBlank()) {
+                missingSettings.add("BEYONDTRUST_CLIENT_ID");
+            }
+
+            if (options.getClientSecret() == null || options.getClientSecret().isBlank()) {
+                missingSettings.add("BEYONDTRUST_CLIENT_SECRET");
+            }
+        } else if (BeyondTrustAuthParsing.parseApiKey(options.getApiKey(), options.getRunAsUser()) == null) {
+            missingSettings.add("BEYONDTRUST_API_KEY");
+        }
+
+        return missingSettings;
+    }
+
+    private void startRefreshTimer(long periodSeconds) {
+        scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "BeyondTrust-Refresher");
+            thread.setDaemon(true);
+            return thread;
+        });
+
+        scheduler.scheduleAtFixedRate(this::refreshInternal, periodSeconds, periodSeconds, TimeUnit.SECONDS);
+    }
+
+    private void refreshInternal() {
+        synchronized (reloadLock) {
+            if (!loadSnapshot("Refresh")) {
+                System.out.println("[BeyondTrust] Refresh failed. Keeping the last successful snapshot.");
+            }
+        }
+    }
+
+    private boolean loadSnapshot(String operation) {
+        try {
+            Map<String, String> loadedSnapshot = snapshotLoader.load();
+            Map<String, String> normalizedSnapshot = new LinkedHashMap<>();
+            if (loadedSnapshot != null) {
+                normalizedSnapshot.putAll(loadedSnapshot);
+            }
+
+            snapshot.set(Collections.unmodifiableMap(normalizedSnapshot));
+            return true;
+        } catch (Exception ex) {
+            System.err.println("[BeyondTrust] " + operation + " failed: " + ex.getMessage());
+            return false;
+        }
     }
 
     @Override
     public void close() {
         if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdownNow(); // Bekleyen işleri iptal et
+            scheduler.shutdownNow();
         }
     }
 }

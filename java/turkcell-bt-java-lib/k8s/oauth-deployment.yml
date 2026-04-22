@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-java-demo-oauth
+  namespace: bt-turkcell
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-java-demo-oauth
+  template:
+    metadata:
+      labels:
+        app: bt-java-demo-oauth
+    spec:
+      containers:
+        - name: bt-java-demo-oauth
+          image: docker.io/enespekdas/btjava-lib:v1.5
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: bt-java-demo-oauth-secret

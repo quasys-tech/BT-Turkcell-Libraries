@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turkcell-bt-python-lib"
+version = "1.0.0"
+description = "BeyondTrust configuration manager parity library for Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.32.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2",
+  "pytest>=8.3.0,<9.0.0",
+]
+
+[project.scripts]
+turkcell-bt-demo = "turkcell_bt_python.demo_app:main"
+turkcell-bt-poc = "turkcell_bt_python.poc:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
