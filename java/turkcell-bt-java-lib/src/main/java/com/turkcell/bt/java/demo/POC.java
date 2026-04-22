@@ -16,11 +16,7 @@ public final class POC {
             String previousOutput = "";
 
             while (true) {
-                String currentOutput = """
-                        Managed Account Sample (%s) = %s
-                        Secret Safe Password Sample (%s) = %s
-                        Secret Safe Username Sample (%s) = %s
-                        """.formatted(
+                String currentOutput = buildOutputBlock(
                         exampleAccountKey, manager.getProperty(exampleAccountKey),
                         exampleSafePasswordKey, manager.getProperty(exampleSafePasswordKey),
                         exampleSafeUsernameKey, manager.getProperty(exampleSafeUsernameKey));
@@ -33,5 +29,23 @@ public final class POC {
                 Thread.sleep(1000);
             }
         }
+    }
+
+    static String buildOutputBlock(
+            String exampleAccountKey,
+            String managedAccountValue,
+            String exampleSafePasswordKey,
+            String safePasswordValue,
+            String exampleSafeUsernameKey,
+            String safeUsernameValue) {
+
+        return """
+                Managed Account Sample (%s) = %s
+                Secret Safe Password Sample (%s) = %s
+                Secret Safe Username Sample (%s) = %s
+                """.formatted(
+                exampleAccountKey, managedAccountValue,
+                exampleSafePasswordKey, safePasswordValue,
+                exampleSafeUsernameKey, safeUsernameValue);
     }
 }

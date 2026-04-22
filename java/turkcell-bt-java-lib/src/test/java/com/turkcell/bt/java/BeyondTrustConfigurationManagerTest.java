@@ -236,6 +236,66 @@ class BeyondTrustConfigurationManagerTest {
     }
 
     @Test
+    @DisplayName("Eksik ayarlar oldugunda load erken donmeli ve snapshot bos kalmali")
+    void loadWhenRequiredSettingsAreMissingKeepsEmptySnapshot() {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+
+        try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, Map::of)) {
+            manager.load();
+
+            assertTrue(manager.getAllProperties().isEmpty());
+            assertEquals("fallback", manager.getProperty("bt.acc.anything", "fallback"));
+        }
+    }
+
+    @Test
+    @DisplayName("Ilk snapshot yuklemesi fail olursa bos snapshot korunmali")
+    void loadWhenInitialSnapshotFailsKeepsEmptySnapshot() {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(false);
+        options.setApiKey("api-key");
+        options.setRefreshIntervalSeconds(0);
+
+        try (BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options, () -> {
+            throw new IllegalStateException("simulated initial failure");
+        })) {
+            manager.load();
+
+            assertTrue(manager.getAllProperties().isEmpty());
+        }
+    }
+
+    @Test
+    @DisplayName("Refresh aktif oldugunda scheduler olusturulup close ile kapatilabilmeli")
+    void loadWithRefreshCreatesSchedulerAndCloseShutsItDown() throws Exception {
+        BeyondTrustOptions options = new BeyondTrustOptions();
+        options.setEnabled(true);
+        options.setApiUrl("https://pam.example.com/BeyondTrust/api/public/v3");
+        options.setUseAppUser(false);
+        options.setApiKey("api-key");
+        options.setRefreshIntervalSeconds(60);
+
+        BeyondTrustConfigurationManager manager = new BeyondTrustConfigurationManager(options,
+                () -> Map.of("bt.acc.Sys.Account", "value"));
+
+        manager.load();
+
+        var schedulerField = BeyondTrustConfigurationManager.class.getDeclaredField("scheduler");
+        schedulerField.setAccessible(true);
+        var scheduler = (java.util.concurrent.ScheduledExecutorService) schedulerField.get(manager);
+
+        assertNotNull(scheduler);
+        assertFalse(scheduler.isShutdown());
+
+        manager.close();
+
+        assertTrue(scheduler.isShutdown());
+    }
+
+    @Test
     @DisplayName("Refresh failure son basarili snapshoti korumali")
     void refreshFailureKeepsLastSnapshot() throws Exception {
         BeyondTrustOptions options = new BeyondTrustOptions();
